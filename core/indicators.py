@@ -1,14 +1,17 @@
 # core/indicators.py — pure functions, DataFrame in → values out
 # Replace any function independently without touching other modules
+#
+# EMA uses pure pandas ewm() — identical to pandas-ta's ta.ema() formula,
+# without the heavy numba/LLVM dependency that crashes on serverless runtimes.
 import pandas as pd
-import pandas_ta as ta
 
 
 # ── EMA ───────────────────────────────────────────────────────────────────────
 # Always pass 15M DataFrame here — EMA is an entry-timeframe tool
 
 def ema(df: pd.DataFrame, period: int) -> pd.Series:
-    return ta.ema(df["close"], length=period)
+    """Exponential Moving Average — mathematically identical to pandas-ta ta.ema()."""
+    return df["close"].ewm(span=period, adjust=False).mean()
 
 
 def ema_values(df: pd.DataFrame) -> dict:
