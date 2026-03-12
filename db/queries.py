@@ -56,6 +56,24 @@ def update_trade_result(trade_id: int, exit_price: float, result: str, pnl: floa
         cur.execute(sql, (exit_price, result, pnl, rr, trade_id))
 
 
+def update_trade_full(trade_id: int, data: dict):
+    """Full edit — updates every user-editable field on a trade row."""
+    sql = """
+    UPDATE trades SET
+        date=%(date)s, time=%(time)s, direction=%(direction)s,
+        bias_4h=%(bias_4h)s, bias_1h=%(bias_1h)s,
+        entry_price=%(entry_price)s, sl_price=%(sl_price)s, tp_price=%(tp_price)s,
+        lot_size=%(lot_size)s, exit_price=%(exit_price)s,
+        result=%(result)s, pnl=%(pnl)s, rr_achieved=%(rr_achieved)s,
+        checklist_score=%(checklist_score)s, setup_rating=%(setup_rating)s,
+        emotion=%(emotion)s, notes=%(notes)s
+    WHERE id=%(id)s
+    """
+    data["id"] = trade_id
+    with _db() as cur:
+        cur.execute(sql, data)
+
+
 def get_all_trades(limit: int = 50, offset: int = 0) -> list[dict]:
     sql = "SELECT * FROM trades ORDER BY date DESC, time DESC LIMIT %s OFFSET %s"
     with _db() as cur:

@@ -45,10 +45,12 @@
       <th>Entry</th><th>SL</th><th>TP</th><th>Lot</th>
       <th>Exit</th><th>Result</th><th>PnL</th><th>RR</th>
       <th>Check</th><th>Emotion</th><th>Notes</th>
+      <th>Actions</th>
     </tr>
   </thead>
   <tbody>
     {% for t in trades %}
+    <!-- Trade row -->
     <tr class="{% if t.result == 'WIN' %}row-win{% elif t.result == 'LOSS' %}row-loss{% endif %}">
       <td>{{ t.id }}</td>
       <td>{{ t.date }}</td>
@@ -66,18 +68,70 @@
           <span class="result-badge result-open">OPEN</span>
         {% endif %}
       </td>
-      <td class="{% if (t.pnl or 0) >= 0 %}green{% else %}red{% endif %}">
-        {{ '+' if (t.pnl or 0) >= 0 }}${{ "%.2f"|format(t.pnl or 0) }}
+      <td class="{% if (t.pnl or 0) > 0 %}green{% elif (t.pnl or 0) < 0 %}red{% endif %}">
+        {% if t.pnl %}
+          {{ '+' if t.pnl > 0 }}${{ "%.2f"|format(t.pnl) }}
+        {% else %}—{% endif %}
       </td>
       <td>{{ t.rr_achieved or '—' }}</td>
       <td>{{ t.checklist_score }}/7</td>
       <td>{{ t.emotion or '—' }}</td>
       <td class="notes-cell">{{ t.notes or '' }}</td>
+      <td class="actions-cell">
+        <a href="{{ url_for('trades.edit_trade_form', trade_id=t.id) }}" class="btn-sm btn-edit">✏ Edit</a>
+        {% if not t.result %}
+        <button class="btn-sm btn-close-trade" onclick="toggleClose({{ t.id }})">⬛ Close</button>
+        {% endif %}
+      </td>
     </tr>
+
+    <!-- Inline close form (only for OPEN trades) -->
+    {% if not t.result %}
+    <tr id="close-row-{{ t.id }}" class="close-form-row" style="display:none">
+      <td colspan="16">
+        <form method="POST"
+              action="{{ url_for('trades.close_trade', trade_id=t.id) }}"
+              class="inline-close-form">
+          <span class="close-label">Close #{{ t.id }} — {{ t.direction }} @ {{ t.entry_price }}</span>
+          <label>
+            Exit Price
+            <input type="number" name="exit_price" step="0.01"
+                   placeholder="{{ t.tp_price }}" required>
+          </label>
+          <label>
+            Result
+            <select name="result">
+              <option value="WIN">WIN</option>
+              <option value="LOSS">LOSS</option>
+              <option value="BE">BE (Break Even)</option>
+            </select>
+          </label>
+          <button type="submit" class="btn-primary btn-sm">Save</button>
+          <button type="button" class="btn-ghost btn-sm"
+                  onclick="toggleClose({{ t.id }})">Cancel</button>
+        </form>
+      </td>
+    </tr>
+    {% endif %}
+
     {% endfor %}
   </tbody>
 </table>
 {% else %}
   <p class="empty-state">No trades yet. <a href="{{ url_for('analysis.index') }}">→ Go to Analysis</a></p>
 {% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+function toggleClose(id) {
+  const row = document.getElementById("close-row-" + id);
+  if (!row) return;
+  const hidden = row.style.display === "none";
+  row.style.display = hidden ? "table-row" : "none";
+  if (hidden) {
+    row.querySelector("input[name='exit_price']").focus();
+  }
+}
+</script>
 {% endblock %}

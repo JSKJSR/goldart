@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+{% block title %}Edit Trade #{{ trade.id }} — GOLDART{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Edit Trade <span class="symbol-tag">#{{ trade.id }}</span></h1>
+  <a href="{{ url_for('trades.journal') }}" class="btn-ghost">← Back to Journal</a>
+</div>
+
+<form method="POST"
+      action="{{ url_for('trades.edit_trade', trade_id=trade.id) }}"
+      class="trade-form">
+
+  <!-- TRADE DETAILS -->
+  <div class="form-section">
+    <div class="form-section-title">TRADE DETAILS</div>
+    <div class="form-grid">
+
+      <div class="field">
+        <label>Date</label>
+        <input type="date" name="date" value="{{ trade.date }}" required>
+      </div>
+
+      <div class="field">
+        <label>Time</label>
+        <input type="time" name="time" value="{{ trade.time }}" required>
+      </div>
+
+      <div class="field">
+        <label>Direction</label>
+        <select name="direction" required>
+          <option value="LONG"  {% if trade.direction == 'LONG'  %}selected{% endif %}>LONG</option>
+          <option value="SHORT" {% if trade.direction == 'SHORT' %}selected{% endif %}>SHORT</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label>4H Bias</label>
+        <select name="bias_4h">
+          <option value="BULLISH" {% if trade.bias_4h == 'BULLISH' %}selected{% endif %}>Bullish</option>
+          <option value="BEARISH" {% if trade.bias_4h == 'BEARISH' %}selected{% endif %}>Bearish</option>
+          <option value="RANGING" {% if trade.bias_4h == 'RANGING' %}selected{% endif %}>Ranging</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label>1H Bias</label>
+        <select name="bias_1h">
+          <option value="BULLISH" {% if trade.bias_1h == 'BULLISH' %}selected{% endif %}>Bullish</option>
+          <option value="BEARISH" {% if trade.bias_1h == 'BEARISH' %}selected{% endif %}>Bearish</option>
+          <option value="RANGING" {% if trade.bias_1h == 'RANGING' %}selected{% endif %}>Ranging</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label>Entry Price</label>
+        <input type="number" name="entry_price" step="0.01"
+               value="{{ trade.entry_price }}" required>
+      </div>
+
+      <div class="field">
+        <label>Stop Loss</label>
+        <input type="number" name="sl_price" step="0.01"
+               value="{{ trade.sl_price }}" required>
+      </div>
+
+      <div class="field">
+        <label>Take Profit</label>
+        <input type="number" name="tp_price" step="0.01"
+               value="{{ trade.tp_price }}" required>
+      </div>
+
+      <div class="field">
+        <label>Lot Size</label>
+        <input type="number" name="lot_size" step="0.01"
+               value="{{ trade.lot_size }}">
+      </div>
+
+    </div>
+  </div>
+
+  <!-- CLOSE / RESULT -->
+  <div class="form-section">
+    <div class="form-section-title">RESULT <span style="font-weight:400;font-size:11px;color:var(--muted)">(PnL auto-calculated from exit price)</span></div>
+    <div class="form-grid">
+
+      <div class="field">
+        <label>Exit Price</label>
+        <input type="number" name="exit_price" step="0.01"
+               value="{{ trade.exit_price or '' }}"
+               placeholder="Leave blank if still open">
+      </div>
+
+      <div class="field">
+        <label>Result</label>
+        <select name="result">
+          <option value=""     {% if not trade.result               %}selected{% endif %}>OPEN</option>
+          <option value="WIN"  {% if trade.result == 'WIN'          %}selected{% endif %}>WIN</option>
+          <option value="LOSS" {% if trade.result == 'LOSS'         %}selected{% endif %}>LOSS</option>
+          <option value="BE"   {% if trade.result == 'BE'           %}selected{% endif %}>BE (Break Even)</option>
+        </select>
+      </div>
+
+    </div>
+    <p class="form-hint">
+      PnL and RR will be recalculated automatically when you save.
+      Current PnL: <strong>{{ '+' if (trade.pnl or 0) >= 0 }}${{ "%.2f"|format(trade.pnl or 0) }}</strong>
+      &nbsp;·&nbsp; RR: <strong>{{ trade.rr_achieved or '—' }}</strong>
+    </p>
+  </div>
+
+  <!-- SETUP QUALITY -->
+  <div class="form-section">
+    <div class="form-section-title">SETUP QUALITY</div>
+    <div class="form-grid">
+
+      <div class="field">
+        <label>Checklist Score (0–7)</label>
+        <input type="number" name="checklist_score" min="0" max="7"
+               value="{{ trade.checklist_score or 0 }}">
+      </div>
+
+      <div class="field">
+        <label>Setup Rating (1–5)</label>
+        <input type="number" name="setup_rating" min="1" max="5"
+               value="{{ trade.setup_rating or 3 }}">
+      </div>
+
+    </div>
+  </div>
+
+  <!-- JOURNAL -->
+  <div class="form-section">
+    <div class="form-section-title">JOURNAL</div>
+    <div class="form-grid">
+      <div class="field">
+        <label>Emotion</label>
+        <select name="emotion">
+          <option value="Calm"      {% if trade.emotion == 'Calm'      %}selected{% endif %}>Calm / Focused</option>
+          <option value="Excited"   {% if trade.emotion == 'Excited'   %}selected{% endif %}>Excited</option>
+          <option value="Anxious"   {% if trade.emotion == 'Anxious'   %}selected{% endif %}>Anxious</option>
+          <option value="Impatient" {% if trade.emotion == 'Impatient' %}selected{% endif %}>Impatient</option>
+          <option value="FOMO"      {% if trade.emotion == 'FOMO'      %}selected{% endif %}>FOMO</option>
+        </select>
+      </div>
+    </div>
+    <div class="field full-width">
+      <label>Notes</label>
+      <textarea name="notes" rows="4"
+                placeholder="What did you see? Why did you take this trade?">{{ trade.notes or '' }}</textarea>
+    </div>
+  </div>
+
+  <div class="form-actions">
+    <a href="{{ url_for('trades.journal') }}" class="btn-ghost">Cancel</a>
+    <button type="submit" class="btn-primary">💾 Save Changes</button>
+  </div>
+
+</form>
+{% endblock %}

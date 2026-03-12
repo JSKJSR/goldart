@@ -2,14 +2,30 @@
 from flask import Blueprint, render_template, request, redirect, url_for, jsonify
 from datetime import date, datetime
 from db.queries import (
-    insert_trade, update_trade_result, get_all_trades,
-    get_stats_summary, increment_session, upsert_balance
+    insert_trade, update_trade_result, update_trade_full,
+    get_trade, get_all_trades, get_stats_summary,
+    increment_session, upsert_balance,
 )
 from core.session import get_status, today
-from config import ACCOUNT_BALANCE
+from config import ACCOUNT_BALANCE, RISK_PER_TRADE
 
 trades_bp = Blueprint("trades", __name__)
 
+# Gold: 1 lot = 100 oz → $100 PnL per $1 price move per lot
+_PIP_VALUE = 100.0
+
+
+def _calc_pnl_rr(entry: float, exit_price: float, sl: float,
+                 lot_size: float, direction: str) -> tuple[float, float]:
+    """Auto-calculate PnL ($) and RR from prices — no manual entry needed."""
+    mult = 1.0 if direction == "LONG" else -1.0
+    pnl  = round((exit_price - entry) * mult * lot_size * _PIP_VALUE, 2)
+    sl_dist = abs(entry - sl)
+    rr = round(abs(exit_price - entry) / sl_dist, 2) if sl_dist > 0 else 0.0
+    return pnl, rr
+
+
+# ── Journal ───────────────────────────────────────────────────────────────────
 
 @trades_bp.get("/")
 def journal():
@@ -17,6 +33,8 @@ def journal():
     stats  = get_stats_summary()
     return render_template("journal.html", trades=trades, stats=stats)
 
+
+# ── New trade ─────────────────────────────────────────────────────────────────
 
 @trades_bp.get("/new")
 def new_trade_form():
@@ -46,26 +64,98 @@ def save_trade():
     return redirect(url_for("trades.journal"))
 
 
+# ── Close trade (auto-calculates PnL) ────────────────────────────────────────
+
 @trades_bp.post("/close/<int:trade_id>")
 def close_trade(trade_id: int):
-    """Mark a trade as WIN / LOSS / BE and update session + balance."""
+    """Close an open trade — PnL and RR are calculated server-side."""
+    trade      = get_trade(trade_id)
+    if not trade:
+        return redirect(url_for("trades.journal"))
+
     f          = request.form
     exit_price = float(f.get("exit_price", 0))
     result     = f.get("result", "LOSS").upper()
-    pnl        = float(f.get("pnl", 0))
-    rr         = float(f.get("rr", 0))
+
+    pnl, rr = _calc_pnl_rr(
+        entry      = trade["entry_price"],
+        exit_price = exit_price,
+        sl         = trade["sl_price"],
+        lot_size   = trade["lot_size"],
+        direction  = trade["direction"],
+    )
+
+    # BE override: force PnL to 0
+    if result == "BE":
+        pnl = 0.0
 
     update_trade_result(trade_id, exit_price, result, pnl, rr)
 
     is_loss = result == "LOSS"
     increment_session(today(), is_loss, pnl)
 
-    # Snapshot balance after closing the trade
     stats = get_stats_summary()
     upsert_balance(today(), ACCOUNT_BALANCE + (stats["total_pnl"] or 0))
 
     return redirect(url_for("trades.journal"))
 
+
+# ── Edit trade ────────────────────────────────────────────────────────────────
+
+@trades_bp.get("/edit/<int:trade_id>")
+def edit_trade_form(trade_id: int):
+    trade = get_trade(trade_id)
+    if not trade:
+        return redirect(url_for("trades.journal"))
+    return render_template("edit_trade.html", trade=trade)
+
+
+@trades_bp.post("/edit/<int:trade_id>")
+def edit_trade(trade_id: int):
+    f           = request.form
+    exit_raw    = f.get("exit_price", "").strip()
+    result_raw  = f.get("result", "").strip().upper() or None
+
+    entry     = float(f.get("entry_price", 0))
+    sl        = float(f.get("sl_price", 0))
+    lot_size  = float(f.get("lot_size", 0))
+    direction = f.get("direction", "LONG")
+
+    # Auto-calculate PnL/RR if exit price is supplied
+    if exit_raw and result_raw:
+        exit_price = float(exit_raw)
+        pnl, rr = _calc_pnl_rr(entry, exit_price, sl, lot_size, direction)
+        if result_raw == "BE":
+            pnl = 0.0
+    else:
+        exit_price = float(exit_raw) if exit_raw else None
+        pnl = float(f.get("pnl", 0))
+        rr  = float(f.get("rr_achieved", 0))
+
+    data = {
+        "date":            f.get("date", date.today().isoformat()),
+        "time":            f.get("time", "00:00"),
+        "direction":       direction,
+        "bias_4h":         f.get("bias_4h", ""),
+        "bias_1h":         f.get("bias_1h", ""),
+        "entry_price":     entry,
+        "sl_price":        sl,
+        "tp_price":        float(f.get("tp_price", 0)),
+        "lot_size":        lot_size,
+        "exit_price":      exit_price,
+        "result":          result_raw,
+        "pnl":             pnl,
+        "rr_achieved":     rr,
+        "checklist_score": int(f.get("checklist_score", 0)),
+        "setup_rating":    int(f.get("setup_rating", 3)),
+        "emotion":         f.get("emotion", ""),
+        "notes":           f.get("notes", ""),
+    }
+    update_trade_full(trade_id, data)
+    return redirect(url_for("trades.journal"))
+
+
+# ── API ───────────────────────────────────────────────────────────────────────
 
 @trades_bp.get("/api/all")
 def api_trades():

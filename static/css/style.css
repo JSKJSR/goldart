@@ -761,3 +761,47 @@ textarea { resize: vertical; }
   cursor: not-allowed;
   pointer-events: none;
 }
+
+/* ── Journal: action buttons ────────────────────────────────────── */
+.actions-cell   { white-space: nowrap; }
+.btn-sm {
+  font-size: 10px; font-weight: 600; padding: 3px 8px;
+  border-radius: 4px; cursor: pointer; border: 1px solid var(--border);
+  background: var(--bg2); color: var(--text); text-decoration: none;
+  display: inline-block; margin: 1px;
+}
+.btn-sm:hover { border-color: var(--gold); color: var(--gold); }
+.btn-edit       { border-color: var(--border); }
+.btn-close-trade { border-color: rgba(224,82,82,0.4); color: var(--red); }
+.btn-close-trade:hover { border-color: var(--red); background: rgba(224,82,82,0.08); }
+
+/* ── Inline close form row ──────────────────────────────────────── */
+.close-form-row td {
+  background: var(--bg2);
+  border-top: 1px solid var(--border);
+  border-bottom: 2px solid var(--gold);
+  padding: 10px 16px;
+}
+.inline-close-form {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+}
+.inline-close-form label {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12px; color: var(--muted);
+}
+.inline-close-form input,
+.inline-close-form select {
+  font-size: 12px; padding: 4px 8px;
+  background: var(--bg3); border: 1px solid var(--border);
+  border-radius: 4px; color: var(--text);
+}
+.close-label {
+  font-size: 12px; font-weight: 600; color: var(--gold);
+  margin-right: 4px;
+}
+
+/* ── Edit form hint text ────────────────────────────────────────── */
+.form-hint {
+  font-size: 12px; color: var(--muted); margin-top: 8px; padding: 0 4px;
+}
+.form-hint strong { color: var(--text); }
