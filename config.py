@@ -24,9 +24,7 @@ TWELVE_DATA_BASE    = "https://api.twelvedata.com"
 # --- App ---
 SECRET_KEY = os.getenv("SECRET_KEY", "goldart-dev-key")
 
-# Vercel has a read-only filesystem except /tmp; use /tmp for the DB when deployed.
-# Locally, keep the DB next to the source for easy inspection.
-if os.environ.get("VERCEL"):
-    DB_PATH = "/tmp/goldart.db"
-else:
-    DB_PATH = os.path.join(os.path.dirname(__file__), "db", "goldart.db")
+# --- Database (Supabase PostgreSQL) ---
+# Full DSN:  postgresql://user:password@host:port/dbname?sslmode=require
+# Set this in .env locally and in Vercel Environment Variables for production.
+DATABASE_URL = os.getenv("DATABASE_URL", "")
