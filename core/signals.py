@@ -4,6 +4,7 @@
 #   4H  → Primary trend + Major S/R + Fibonacci swing
 #   1H  → Confirmation trend + Minor S/R
 #   15M → EMA 15/21 touch + signal candle (entry timeframe)
+from __future__ import annotations  # enables PEP 604 (X | Y) on Python 3.9
 
 import pandas as pd
 from core.indicators import (

@@ -43,7 +43,6 @@ def get_status() -> dict:
 
 
 def _lock(date_str: str, status: str):
-    from db.queries import get_or_create_session
     s = get_or_create_session(date_str)
     if s["status"] == "ACTIVE":
         set_session_status(date_str, status)

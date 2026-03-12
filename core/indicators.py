@@ -3,6 +3,8 @@
 #
 # EMA uses pure pandas ewm() — identical to pandas-ta's ta.ema() formula,
 # without the heavy numba/LLVM dependency that crashes on serverless runtimes.
+from __future__ import annotations  # enables PEP 604 (X | Y) on Python 3.9
+
 import pandas as pd
 
 

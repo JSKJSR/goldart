@@ -1,6 +1,7 @@
 # db/queries.py — all SQL in one place, returns plain dicts
 # Uses psycopg2 with RealDictCursor so rows behave like dicts (same API as before).
 # Placeholders: %s (positional) or %(name)s (named dict) — NOT SQLite's ?/:name.
+from __future__ import annotations  # enables PEP 604 (X | Y) on Python 3.9
 
 from contextlib import contextmanager
 import psycopg2.extras
