@@ -1,7 +1,7 @@
 # routes/export.py — swap exporters independently
 from flask import Blueprint, send_file
 from db.queries import get_all_trades, get_stats_summary
-import io, os
+import io
 from datetime import date
 
 export_bp = Blueprint("export", __name__)

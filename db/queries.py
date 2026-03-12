@@ -1,5 +1,4 @@
 # db/queries.py — all SQL in one place, returns plain dicts
-from datetime import date as _date
 from db.models import get_conn
 
 

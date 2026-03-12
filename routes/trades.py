@@ -3,7 +3,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, jsonif
 from datetime import date, datetime
 from db.queries import (
     insert_trade, update_trade_result, get_all_trades,
-    get_trade, get_stats_summary, increment_session, upsert_balance
+    get_stats_summary, increment_session, upsert_balance
 )
 from core.session import get_status, today
 from config import ACCOUNT_BALANCE
@@ -60,8 +60,7 @@ def close_trade(trade_id: int):
     is_loss = result == "LOSS"
     increment_session(today(), is_loss, pnl)
 
-    # Snapshot balance
-    trade = get_trade(trade_id)
+    # Snapshot balance after closing the trade
     stats = get_stats_summary()
     upsert_balance(today(), ACCOUNT_BALANCE + (stats["total_pnl"] or 0))
 
