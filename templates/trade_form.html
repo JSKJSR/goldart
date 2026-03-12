@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block title %}Log Trade — GOLDART{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Log Trade</h1>
+  <a href="{{ url_for('trades.journal') }}" class="btn-ghost">← Back</a>
+</div>
+
+<form method="POST" action="{{ url_for('trades.save_trade') }}" class="trade-form">
+
+  <div class="form-section">
+    <div class="form-section-title">TRADE DETAILS</div>
+    <div class="form-grid">
+      <div class="field">
+        <label>Date</label>
+        <input type="date" name="date" value="{{ now.strftime('%Y-%m-%d') }}" required>
+      </div>
+      <div class="field">
+        <label>Time</label>
+        <input type="time" name="time" value="{{ now.strftime('%H:%M') }}" required>
+      </div>
+      <div class="field">
+        <label>Direction</label>
+        <select name="direction" required>
+          <option value="LONG">LONG</option>
+          <option value="SHORT">SHORT</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>4H Bias</label>
+        <select name="bias_4h">
+          <option value="BULLISH">Bullish</option>
+          <option value="BEARISH">Bearish</option>
+          <option value="RANGING">Ranging</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>1H Bias</label>
+        <select name="bias_1h">
+          <option value="BULLISH">Bullish</option>
+          <option value="BEARISH">Bearish</option>
+          <option value="RANGING">Ranging</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Entry Price</label>
+        <input type="number" name="entry_price" step="0.01" required>
+      </div>
+      <div class="field">
+        <label>Stop Loss</label>
+        <input type="number" name="sl_price" step="0.01" required>
+      </div>
+      <div class="field">
+        <label>Take Profit</label>
+        <input type="number" name="tp_price" step="0.01" required>
+      </div>
+      <div class="field">
+        <label>Lot Size</label>
+        <input type="number" name="lot_size" step="0.01">
+      </div>
+    </div>
+  </div>
+
+  <div class="form-section">
+    <div class="form-section-title">SETUP QUALITY</div>
+    <div class="form-grid">
+      <div class="field">
+        <label>Checklist Score (0–7)</label>
+        <input type="number" name="checklist_score" min="0" max="7" value="0">
+      </div>
+      <div class="field">
+        <label>Setup Rating (1–5)</label>
+        <input type="number" name="setup_rating" min="1" max="5" value="3">
+      </div>
+    </div>
+  </div>
+
+  <div class="form-section">
+    <div class="form-section-title">JOURNAL</div>
+    <div class="form-grid">
+      <div class="field">
+        <label>Emotion</label>
+        <select name="emotion">
+          <option value="Calm">Calm / Focused</option>
+          <option value="Excited">Excited</option>
+          <option value="Anxious">Anxious</option>
+          <option value="Impatient">Impatient</option>
+          <option value="FOMO">FOMO</option>
+        </select>
+      </div>
+    </div>
+    <div class="field full-width">
+      <label>Notes</label>
+      <textarea name="notes" rows="4" placeholder="What did you see? Why did you take this trade?"></textarea>
+    </div>
+  </div>
+
+  <div class="form-actions">
+    <a href="{{ url_for('trades.journal') }}" class="btn-ghost">Cancel</a>
+    <button type="submit" class="btn-primary">✅ Save Trade</button>
+  </div>
+
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+  const p = new URLSearchParams(window.location.search);
+  const map = { entry: "entry_price", sl: "sl_price", tp: "tp_price", lot: "lot_size" };
+  Object.entries(map).forEach(([qk, fk]) => {
+    const v = p.get(qk);
+    const el = document.querySelector(`[name="${fk}"]`);
+    if (v && el) el.value = v;
+  });
+  const dir = p.get("dir");
+  if (dir) {
+    const sel = document.querySelector('[name="direction"]');
+    if (sel) sel.value = dir;
+  }
+})();
+</script>
+{% endblock %}

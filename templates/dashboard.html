@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — GOLDART{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Dashboard</h1>
+  <span class="live-badge">● LIVE</span>
+</div>
+
+<!-- Session Cards -->
+<div class="cards-row">
+
+  <div class="card">
+    <div class="card-label">ACCOUNT</div>
+    <div class="card-value">$2,000.00</div>
+    <div class="card-sub">Starting capital</div>
+  </div>
+
+  <div class="card">
+    <div class="card-label">TODAY'S TRADES</div>
+    <div class="card-value">{{ session.trades_taken }} / {{ session.max_trades }}</div>
+    <div class="pip-row">
+      {% for i in range(session.max_trades) %}
+        <span class="pip {% if i < session.trades_taken %}filled{% endif %}"></span>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label">LOSSES TODAY</div>
+    <div class="card-value {% if session.losses_taken >= session.max_losses %}danger{% endif %}">
+      {{ session.losses_taken }} / {{ session.max_losses }}
+    </div>
+    <div class="pip-row">
+      {% for i in range(session.max_losses) %}
+        <span class="pip loss {% if i < session.losses_taken %}filled{% endif %}"></span>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label">DAILY P&L</div>
+    <div class="card-value {% if session.daily_pnl >= 0 %}green{% else %}red{% endif %}">
+      {{ '+' if session.daily_pnl >= 0 }}${{ "%.2f"|format(session.daily_pnl) }}
+    </div>
+    <div class="card-sub">Target: $200</div>
+  </div>
+
+</div>
+
+<!-- Session Status Banner -->
+<div class="banner {% if session.can_trade %}banner-ok{% else %}banner-locked{% endif %}">
+  {% if session.can_trade %}
+    ✅ TRADING ALLOWED &nbsp;·&nbsp;
+    {{ session.trades_left }} trade{{ 's' if session.trades_left != 1 }} left &nbsp;·&nbsp;
+    {{ session.losses_left }} loss{{ 'es' if session.losses_left != 1 }} allowed
+  {% else %}
+    🔒 {{ session.block_reason }}
+  {% endif %}
+  <div class="banner-actions">
+    <a href="{{ url_for('analysis.index') }}" class="btn-primary {% if not session.can_trade %}disabled{% endif %}">
+      → Analysis + Checklist
+    </a>
+    <a href="{{ url_for('trades.new_trade_form') }}" class="btn-secondary">+ Log Trade</a>
+  </div>
+</div>
+
+<!-- Stats Row -->
+<div class="section-title">ALL TIME</div>
+<div class="cards-row">
+  <div class="card">
+    <div class="card-label">WIN RATE</div>
+    <div class="card-value green">{{ stats.win_rate }}%</div>
+    <div class="card-sub">{{ stats.wins }}W / {{ stats.losses }}L</div>
+  </div>
+  <div class="card">
+    <div class="card-label">AVG RR</div>
+    <div class="card-value">{{ stats.avg_rr or '—' }}</div>
+    <div class="card-sub">Target: 2.0</div>
+  </div>
+  <div class="card">
+    <div class="card-label">TOTAL P&L</div>
+    <div class="card-value {% if (stats.total_pnl or 0) >= 0 %}green{% else %}red{% endif %}">
+      ${{ "%.2f"|format(stats.total_pnl or 0) }}
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-label">TOTAL TRADES</div>
+    <div class="card-value">{{ stats.total or 0 }}</div>
+  </div>
+</div>
+
+<!-- Recent Trades -->
+<div class="section-title">TODAY'S TRADES</div>
+{% if trades %}
+<table class="trade-table">
+  <thead>
+    <tr>
+      <th>Time</th><th>Dir</th><th>Entry</th><th>SL</th><th>TP</th>
+      <th>Lot</th><th>Result</th><th>PnL</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for t in trades %}
+    <tr class="{% if t.result == 'WIN' %}row-win{% elif t.result == 'LOSS' %}row-loss{% endif %}">
+      <td>{{ t.time }}</td>
+      <td><span class="dir-badge dir-{{ t.direction|lower }}">{{ t.direction }}</span></td>
+      <td>{{ t.entry_price }}</td>
+      <td>{{ t.sl_price }}</td>
+      <td>{{ t.tp_price }}</td>
+      <td>{{ t.lot_size }}</td>
+      <td>{{ t.result or 'OPEN' }}</td>
+      <td class="{% if (t.pnl or 0) >= 0 %}green{% else %}red{% endif %}">
+        {{ '+' if (t.pnl or 0) >= 0 }}${{ "%.2f"|format(t.pnl or 0) }}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+  <p class="empty-state">No trades logged today. <a href="{{ url_for('analysis.index') }}">→ Go to Analysis</a></p>
+{% endif %}
+{% endblock %}

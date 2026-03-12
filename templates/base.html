@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}GOLDART{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  {% block head %}{% endblock %}
+</head>
+<body>
+
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <span class="logo-mark">▲</span>
+    <span class="logo-text">GOLDART</span>
+  </div>
+
+  <ul class="nav-links">
+    <li><a href="{{ url_for('dashboard.index') }}"   class="{% if request.endpoint == 'dashboard.index' %}active{% endif %}">
+      <span class="icon">⬡</span> Dashboard
+    </a></li>
+    <li><a href="{{ url_for('analysis.index') }}"    class="{% if request.blueprint == 'analysis' %}active{% endif %}">
+      <span class="icon">◈</span> Analysis
+    </a></li>
+    <li><a href="{{ url_for('trades.journal') }}"    class="{% if request.blueprint == 'trades' %}active{% endif %}">
+      <span class="icon">◫</span> Journal
+    </a></li>
+    <li><a href="{{ url_for('export.to_excel') }}">
+      <span class="icon">↗</span> Export Excel
+    </a></li>
+  </ul>
+
+  <div class="sidebar-account">
+    <div class="label">ACCOUNT</div>
+    <div class="balance">$2,000</div>
+    <div class="label" id="daily-status">Loading…</div>
+  </div>
+</nav>
+
+<main class="content">
+  {% block content %}{% endblock %}
+</main>
+
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

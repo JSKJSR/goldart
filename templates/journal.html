@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}Journal — GOLDART{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Trade Journal</h1>
+  <a href="{{ url_for('trades.new_trade_form') }}" class="btn-primary">+ Log Trade</a>
+</div>
+
+<!-- Stats Summary -->
+<div class="cards-row">
+  <div class="card">
+    <div class="card-label">TRADES</div>
+    <div class="card-value">{{ stats.total or 0 }}</div>
+  </div>
+  <div class="card">
+    <div class="card-label">WIN RATE</div>
+    <div class="card-value green">{{ stats.win_rate }}%</div>
+    <div class="card-sub">{{ stats.wins }}W / {{ stats.losses }}L</div>
+  </div>
+  <div class="card">
+    <div class="card-label">AVG RR</div>
+    <div class="card-value">{{ stats.avg_rr or '—' }}</div>
+  </div>
+  <div class="card">
+    <div class="card-label">TOTAL P&L</div>
+    <div class="card-value {% if (stats.total_pnl or 0) >= 0 %}green{% else %}red{% endif %}">
+      ${{ "%.2f"|format(stats.total_pnl or 0) }}
+    </div>
+  </div>
+</div>
+
+<!-- Export buttons -->
+<div class="export-row">
+  <a href="{{ url_for('export.to_excel') }}" class="btn-ghost">↗ Excel</a>
+  <a href="{{ url_for('export.to_pdf') }}"   class="btn-ghost">↗ PDF</a>
+</div>
+
+<!-- Trades Table -->
+{% if trades %}
+<table class="trade-table full">
+  <thead>
+    <tr>
+      <th>#</th><th>Date</th><th>Time</th><th>Dir</th>
+      <th>Entry</th><th>SL</th><th>TP</th><th>Lot</th>
+      <th>Exit</th><th>Result</th><th>PnL</th><th>RR</th>
+      <th>Check</th><th>Emotion</th><th>Notes</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for t in trades %}
+    <tr class="{% if t.result == 'WIN' %}row-win{% elif t.result == 'LOSS' %}row-loss{% endif %}">
+      <td>{{ t.id }}</td>
+      <td>{{ t.date }}</td>
+      <td>{{ t.time }}</td>
+      <td><span class="dir-badge dir-{{ t.direction|lower }}">{{ t.direction }}</span></td>
+      <td>{{ t.entry_price }}</td>
+      <td>{{ t.sl_price }}</td>
+      <td>{{ t.tp_price }}</td>
+      <td>{{ t.lot_size }}</td>
+      <td>{{ t.exit_price or '—' }}</td>
+      <td>
+        {% if t.result %}
+          <span class="result-badge result-{{ t.result|lower }}">{{ t.result }}</span>
+        {% else %}
+          <span class="result-badge result-open">OPEN</span>
+        {% endif %}
+      </td>
+      <td class="{% if (t.pnl or 0) >= 0 %}green{% else %}red{% endif %}">
+        {{ '+' if (t.pnl or 0) >= 0 }}${{ "%.2f"|format(t.pnl or 0) }}
+      </td>
+      <td>{{ t.rr_achieved or '—' }}</td>
+      <td>{{ t.checklist_score }}/7</td>
+      <td>{{ t.emotion or '—' }}</td>
+      <td class="notes-cell">{{ t.notes or '' }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+  <p class="empty-state">No trades yet. <a href="{{ url_for('analysis.index') }}">→ Go to Analysis</a></p>
+{% endif %}
+{% endblock %}

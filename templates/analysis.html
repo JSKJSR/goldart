@@ -1,0 +1,235 @@
+{% extends "base.html" %}
+{% block title %}Analysis — GOLDART{% endblock %}
+
+{% block head %}
+<script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="page-header page-header--compact">
+  <h1>Analysis <span class="symbol-tag">XAU/USD</span></h1>
+  <div class="header-controls">
+    <span class="tf-chips">
+      <span class="tf-chip">4H trend</span>
+      <span class="tf-chip">1H confirm</span>
+      <span class="tf-chip tf-chip--entry">15M entry</span>
+    </span>
+    <span id="cacheStatus" class="cache-status"></span>
+    <button class="btn-ghost" id="refreshBtn" onclick="loadSnapshot()">↻ Refresh</button>
+    <span class="live-badge">● LIVE</span>
+  </div>
+</div>
+
+{% if not session.can_trade %}
+<div class="banner banner-locked banner--slim">
+  🔒 {{ session.block_reason }}
+</div>
+{% endif %}
+
+<!-- 3-COLUMN LAYOUT -->
+<div class="analysis-3col">
+
+  <!-- ── COL 1: TradingView Chart ────────────────────────────────── -->
+  <div class="col-chart">
+    <div class="chart-header">
+      <span class="tab-label">TradingView Chart</span>
+      <span class="tab-hint">Login to TV in browser → your account &amp; indicators load here</span>
+    </div>
+    <div class="tv-wrap">
+      <iframe
+        id="tv-chart"
+        src="https://www.tradingview.com/widgetembed/?frameElementId=tv-chart&symbol=XAUUSD&interval=H1&hidesidetoolbar=0&hidetoptoolbar=0&symboledit=1&saveimage=1&toolbarbg=1a1a1a&studies=EMA%4015%7CEMA%4021&theme=dark&style=1&timezone=Etc%2FUTC&locale=en"
+        allowtransparency="true"
+        frameborder="0"
+        allowfullscreen>
+      </iframe>
+    </div>
+  </div>
+
+  <!-- ── COL 2: Analysis Panel ───────────────────────────────────── -->
+  <div class="col-analysis">
+
+    <!-- Signal -->
+    <div class="panel-block">
+      <div class="block-title">SIGNAL</div>
+      <div id="signalContent" class="loading-state">Loading…</div>
+    </div>
+
+    <!-- Trend -->
+    <div class="panel-block">
+      <div class="block-title">TREND BIAS</div>
+      <div class="trend-row">
+        <span class="tf-pill">4H</span>
+        <span class="trend-badge" id="trend4h">—</span>
+      </div>
+      <div class="trend-row">
+        <span class="tf-pill">1H</span>
+        <span class="trend-badge" id="trend1h">—</span>
+      </div>
+      <div class="trend-row">
+        <span class="tf-pill">15M</span>
+        <span class="trend-badge trend-entry" id="trend15m">EMA entry</span>
+      </div>
+      <div class="aligned-tag" id="trendAligned"></div>
+    </div>
+
+    <!-- EMA (15M) -->
+    <div class="panel-block">
+      <div class="block-title">EMA <span class="tf-tag">15M</span></div>
+      <div class="level-row price-row"><span>Price</span><span id="currentPrice">—</span></div>
+      <div class="level-row ema15-row"><span>EMA 15</span><span id="ema15">—</span></div>
+      <div class="level-row ema21-row"><span>EMA 21</span><span id="ema21">—</span></div>
+      <div class="ema-status" id="emaStatus"></div>
+    </div>
+
+    <!-- Key Levels (4H major + 1H minor) -->
+    <div class="panel-block">
+      <div class="block-title">KEY LEVELS</div>
+      <div class="levels-sub">MAJOR <span class="tf-tag">4H</span></div>
+      <div id="majorLevels">—</div>
+      <div class="levels-sub levels-sub--minor">MINOR <span class="tf-tag">1H</span></div>
+      <div id="minorLevels">—</div>
+    </div>
+
+    <!-- Fibonacci (4H swing) -->
+    <div class="panel-block">
+      <div class="block-title">FIBONACCI <span class="tf-tag">4H</span></div>
+      <div class="fib-swing" id="fibSwing"></div>
+      <div id="fibContent">—</div>
+    </div>
+
+  </div>
+
+  <!-- ── COL 3: Checklist + Risk Calculator ─────────────────────── -->
+  <div class="col-checklist">
+
+    <div class="block-title block-title--section">PRE-TRADE CHECKLIST</div>
+
+    <!-- Direction toggle -->
+    <div class="dir-toggle">
+      <button class="dir-btn dir-btn--long active" id="dirLong"  onclick="setDir('LONG')">▲ LONG</button>
+      <button class="dir-btn dir-btn--short"       id="dirShort" onclick="setDir('SHORT')">▼ SHORT</button>
+    </div>
+
+    <!-- Checklist items -->
+    <div class="check-list">
+
+      <div class="check-category-label">TREND</div>
+      <label class="check-item">
+        <input type="checkbox" name="c1" onchange="updateScore()">
+        <span>4H trend is clear?</span>
+        <span class="check-hint" id="hint-c1"></span>
+      </label>
+      <label class="check-item">
+        <input type="checkbox" name="c2" onchange="updateScore()">
+        <span>1H aligned with 4H?</span>
+        <span class="check-hint" id="hint-c2"></span>
+      </label>
+
+      <div class="check-category-label">LEVELS</div>
+      <label class="check-item">
+        <input type="checkbox" name="c3" onchange="updateScore()">
+        <span>Price at S/R level?</span>
+        <span class="check-hint" id="hint-c3"></span>
+      </label>
+      <label class="check-item">
+        <input type="checkbox" name="c4" onchange="updateScore()">
+        <span>Fib 0.618 confluence?</span>
+        <span class="check-hint" id="hint-c4"></span>
+      </label>
+
+      <div class="check-category-label">ENTRY <span class="tf-tag">15M</span></div>
+      <label class="check-item">
+        <input type="checkbox" name="c5" onchange="updateScore()">
+        <span>Price at EMA 15 / EMA 21?</span>
+        <span class="check-hint" id="hint-c5"></span>
+      </label>
+      <label class="check-item">
+        <input type="checkbox" name="c6" onchange="updateScore()">
+        <span>Signal candle formed?</span>
+        <span class="check-hint" id="hint-c6"></span>
+      </label>
+
+      <div class="check-category-label">RISK</div>
+      <label class="check-item">
+        <input type="checkbox" name="c7" onchange="updateScore()">
+        <span>Daily losses &lt; 2?</span>
+        <span class="check-hint" id="hint-c7">{{ session.losses_taken }}/{{ session.max_losses }} today</span>
+      </label>
+
+    </div>
+
+    <!-- Score bar -->
+    <div class="score-wrap">
+      <div class="score-top">
+        <span>Score</span>
+        <strong><span id="scoreNum">0</span> / 7</strong>
+      </div>
+      <div class="score-bar">
+        <div class="score-fill" id="scoreFill" style="width:0%"></div>
+      </div>
+      <div class="score-verdict" id="scoreVerdict"></div>
+    </div>
+
+    <!-- Risk Calculator (unlocks at 6/7) -->
+    <div class="risk-block" id="riskCalc">
+      <div class="block-title block-title--section">RISK CALCULATOR</div>
+
+      <div class="risk-row">
+        <div class="field">
+          <label>Entry</label>
+          <input type="number" id="rcEntry" step="0.01" placeholder="2307.80">
+        </div>
+        <div class="field">
+          <label>Stop Loss</label>
+          <input type="number" id="rcSL" step="0.01" placeholder="2300.00">
+        </div>
+      </div>
+
+      <button class="btn-primary btn--full" onclick="calcRisk()">Calculate Risk</button>
+
+      <div class="risk-results" id="riskOutput">
+        <div class="rr-highlight">
+          <span>Lot Size</span><strong id="outLot">—</strong>
+        </div>
+        <div class="rr-highlight">
+          <span>Take Profit</span><strong id="outTP">—</strong>
+        </div>
+        <div class="risk-row-result">
+          <span>Risk</span><strong id="outRisk" class="red">$50</strong>
+          <span>Reward</span><strong id="outReward" class="green">$100</strong>
+          <span>RR</span><strong id="outRR">1:2</strong>
+        </div>
+      </div>
+
+      <a href="{{ url_for('trades.new_trade_form') }}"
+         class="btn-primary btn--full btn--log"
+         id="logTradeBtn">
+        ✅ Log This Trade
+      </a>
+    </div>
+
+  </div>
+  <!-- end col-checklist -->
+
+</div>
+<!-- end analysis-3col -->
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/checklist.js') }}"></script>
+<script src="{{ url_for('static', filename='js/risk.js') }}"></script>
+<script>
+  let _currentDir = "LONG";
+
+  function setDir(dir) {
+    _currentDir = dir;
+    document.getElementById("dirLong").classList.toggle("active",  dir === "LONG");
+    document.getElementById("dirShort").classList.toggle("active", dir === "SHORT");
+    const sel = document.getElementById("rcDir");
+    if (sel) sel.value = dir;
+  }
+
+  document.addEventListener("DOMContentLoaded", loadSnapshot);
+</script>
+{% endblock %}

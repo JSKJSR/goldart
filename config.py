@@ -1,0 +1,32 @@
+# config.py — single source of truth for all settings
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+# --- Account ---
+ACCOUNT_BALANCE   = float(os.getenv("ACCOUNT_BALANCE", 2000))
+RISK_PER_TRADE    = float(os.getenv("RISK_PER_TRADE",  50))
+REWARD_PER_TRADE  = float(os.getenv("REWARD_PER_TRADE", 100))
+
+# --- Daily Limits ---
+MAX_TRADES_PER_DAY = int(os.getenv("MAX_TRADES_PER_DAY", 3))
+MAX_LOSSES_PER_DAY = int(os.getenv("MAX_LOSSES_PER_DAY", 2))
+
+# --- Market ---
+SYMBOL     = os.getenv("SYMBOL", "XAU/USD")
+TIMEFRAMES = ["1h", "4h", "15min"]
+
+# --- Twelve Data API ---
+TWELVE_DATA_API_KEY = os.getenv("TWELVE_DATA_API_KEY", "")
+TWELVE_DATA_BASE    = "https://api.twelvedata.com"
+
+# --- App ---
+SECRET_KEY = os.getenv("SECRET_KEY", "goldart-dev-key")
+
+# Vercel has a read-only filesystem except /tmp; use /tmp for the DB when deployed.
+# Locally, keep the DB next to the source for easy inspection.
+if os.environ.get("VERCEL"):
+    DB_PATH = "/tmp/goldart.db"
+else:
+    DB_PATH = os.path.join(os.path.dirname(__file__), "db", "goldart.db")
