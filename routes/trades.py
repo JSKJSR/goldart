@@ -4,6 +4,7 @@ from datetime import date, datetime
 from db.queries import (
     insert_trade, update_trade_result, update_trade_full,
     get_trade, get_all_trades, get_stats_summary,
+    get_trades_by_date, get_or_create_session,
     increment_session, upsert_balance,
 )
 from core.session import get_status, today
@@ -23,6 +24,29 @@ def _calc_pnl_rr(entry: float, exit_price: float, sl: float,
     sl_dist = abs(entry - sl)
     rr = round(abs(exit_price - entry) / sl_dist, 2) if sl_dist > 0 else 0.0
     return pnl, rr
+
+
+def _sync_session(date_str: str):
+    """Recompute session counters from actual trades for the given date."""
+    from db.queries import _db
+    trades = get_trades_by_date(date_str)
+    closed = [t for t in trades if t.get("result")]
+    trades_taken = len(closed)
+    losses_taken = sum(1 for t in closed if t["result"] == "LOSS")
+    daily_pnl = round(sum(t.get("pnl") or 0 for t in closed), 2)
+
+    # Ensure session row exists then overwrite counters
+    get_or_create_session(date_str)
+    with _db() as cur:
+        cur.execute("""
+            UPDATE sessions
+            SET trades_taken = %s, losses_taken = %s, daily_pnl = %s
+            WHERE date = %s
+        """, (trades_taken, losses_taken, daily_pnl, date_str))
+
+    # Update account balance
+    stats = get_stats_summary()
+    upsert_balance(date_str, ACCOUNT_BALANCE + (stats["total_pnl"] or 0))
 
 
 # ── Journal ───────────────────────────────────────────────────────────────────
@@ -51,12 +75,12 @@ def save_trade():
         "direction":       f.get("direction", "LONG"),
         "bias_4h":         f.get("bias_4h", ""),
         "bias_1h":         f.get("bias_1h", ""),
-        "entry_price":     float(f.get("entry_price", 0)),
-        "sl_price":        float(f.get("sl_price", 0)),
-        "tp_price":        float(f.get("tp_price", 0)),
-        "lot_size":        float(f.get("lot_size", 0)),
-        "checklist_score": int(f.get("checklist_score", 0)),
-        "setup_rating":    int(f.get("setup_rating", 0)),
+        "entry_price":     float(f.get("entry_price") or 0),
+        "sl_price":        float(f.get("sl_price") or 0),
+        "tp_price":        float(f.get("tp_price") or 0),
+        "lot_size":        float(f.get("lot_size") or 0),
+        "checklist_score": int(f.get("checklist_score") or 0),
+        "setup_rating":    int(f.get("setup_rating") or 0),
         "emotion":         f.get("emotion", ""),
         "notes":           f.get("notes", ""),
     }
@@ -69,12 +93,12 @@ def save_trade():
 @trades_bp.post("/close/<int:trade_id>")
 def close_trade(trade_id: int):
     """Close an open trade — PnL and RR are calculated server-side."""
-    trade      = get_trade(trade_id)
+    trade = get_trade(trade_id)
     if not trade:
         return redirect(url_for("trades.journal"))
 
     f          = request.form
-    exit_price = float(f.get("exit_price", 0))
+    exit_price = float(f.get("exit_price") or 0)
     result     = f.get("result", "LOSS").upper()
 
     pnl, rr = _calc_pnl_rr(
@@ -91,11 +115,8 @@ def close_trade(trade_id: int):
 
     update_trade_result(trade_id, exit_price, result, pnl, rr)
 
-    is_loss = result == "LOSS"
-    increment_session(today(), is_loss, pnl)
-
-    stats = get_stats_summary()
-    upsert_balance(today(), ACCOUNT_BALANCE + (stats["total_pnl"] or 0))
+    # Recompute session from actual trades (reliable, replaces increment)
+    _sync_session(trade["date"])
 
     return redirect(url_for("trades.journal"))
 
@@ -116,9 +137,9 @@ def edit_trade(trade_id: int):
     exit_raw    = f.get("exit_price", "").strip()
     result_raw  = f.get("result", "").strip().upper() or None
 
-    entry     = float(f.get("entry_price", 0))
-    sl        = float(f.get("sl_price", 0))
-    lot_size  = float(f.get("lot_size", 0))
+    entry     = float(f.get("entry_price") or 0)
+    sl        = float(f.get("sl_price") or 0)
+    lot_size  = float(f.get("lot_size") or 0)
     direction = f.get("direction", "LONG")
 
     # Auto-calculate PnL/RR if exit price is supplied
@@ -129,8 +150,8 @@ def edit_trade(trade_id: int):
             pnl = 0.0
     else:
         exit_price = float(exit_raw) if exit_raw else None
-        pnl = float(f.get("pnl", 0))
-        rr  = float(f.get("rr_achieved", 0))
+        pnl = float(f.get("pnl") or 0)
+        rr  = float(f.get("rr_achieved") or 0)
 
     data = {
         "date":            f.get("date", date.today().isoformat()),
@@ -140,18 +161,22 @@ def edit_trade(trade_id: int):
         "bias_1h":         f.get("bias_1h", ""),
         "entry_price":     entry,
         "sl_price":        sl,
-        "tp_price":        float(f.get("tp_price", 0)),
+        "tp_price":        float(f.get("tp_price") or 0),
         "lot_size":        lot_size,
         "exit_price":      exit_price,
         "result":          result_raw,
         "pnl":             pnl,
         "rr_achieved":     rr,
-        "checklist_score": int(f.get("checklist_score", 0)),
-        "setup_rating":    int(f.get("setup_rating", 3)),
+        "checklist_score": int(f.get("checklist_score") or 0),
+        "setup_rating":    int(f.get("setup_rating") or 3),
         "emotion":         f.get("emotion", ""),
         "notes":           f.get("notes", ""),
     }
     update_trade_full(trade_id, data)
+
+    # Recompute session stats from actual trades for today
+    _sync_session(data["date"])
+
     return redirect(url_for("trades.journal"))
 
 
