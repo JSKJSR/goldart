@@ -800,6 +800,24 @@ textarea { resize: vertical; }
   margin-right: 4px;
 }
 
+/* ── Close form live preview ───────────────────────────────────── */
+.close-preview {
+  font-size: 13px; font-weight: 700; letter-spacing: 0.3px;
+  padding: 2px 8px; border-radius: 4px;
+  background: var(--bg3); min-width: 100px; text-align: center;
+}
+
+/* ── Edit form live calc row ──────────────────────────────────── */
+.live-calc-row {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 10px 14px; margin-top: 8px;
+  background: var(--bg3); border: 1px solid var(--border);
+  border-radius: 6px; font-size: 13px;
+}
+.live-calc-row .calc-label { color: var(--muted); font-size: 11px; text-transform: uppercase; }
+.live-calc-row .calc-sep { color: var(--border); }
+.live-calc-row strong { font-size: 15px; min-width: 70px; }
+
 /* ── Edit form hint text ────────────────────────────────────────── */
 .form-hint {
   font-size: 12px; color: var(--muted); margin-top: 8px; padding: 0 4px;

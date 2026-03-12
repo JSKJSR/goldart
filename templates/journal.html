@@ -91,12 +91,17 @@
       <td colspan="16">
         <form method="POST"
               action="{{ url_for('trades.close_trade', trade_id=t.id) }}"
-              class="inline-close-form">
+              class="inline-close-form"
+              data-entry="{{ t.entry_price }}"
+              data-sl="{{ t.sl_price }}"
+              data-lot="{{ t.lot_size }}"
+              data-dir="{{ t.direction }}">
           <span class="close-label">Close #{{ t.id }} — {{ t.direction }} @ {{ t.entry_price }}</span>
           <label>
             Exit Price
             <input type="number" name="exit_price" step="0.01"
-                   placeholder="{{ t.tp_price }}" required>
+                   placeholder="{{ t.tp_price }}" required
+                   oninput="liveClose(this)">
           </label>
           <label>
             Result
@@ -106,6 +111,7 @@
               <option value="BE">BE (Break Even)</option>
             </select>
           </label>
+          <span class="close-preview" id="preview-{{ t.id }}"></span>
           <button type="submit" class="btn-primary btn-sm">Save</button>
           <button type="button" class="btn-ghost btn-sm"
                   onclick="toggleClose({{ t.id }})">Cancel</button>
@@ -124,6 +130,8 @@
 
 {% block scripts %}
 <script>
+const PIP = 100.0;
+
 function toggleClose(id) {
   const row = document.getElementById("close-row-" + id);
   if (!row) return;
@@ -131,6 +139,43 @@ function toggleClose(id) {
   row.style.display = hidden ? "table-row" : "none";
   if (hidden) {
     row.querySelector("input[name='exit_price']").focus();
+  }
+}
+
+function liveClose(input) {
+  const form  = input.closest('.inline-close-form');
+  const entry = parseFloat(form.dataset.entry) || 0;
+  const sl    = parseFloat(form.dataset.sl) || 0;
+  const lot   = parseFloat(form.dataset.lot) || 0;
+  const dir   = form.dataset.dir;
+  const exit  = parseFloat(input.value) || 0;
+  const mult  = dir === 'LONG' ? 1 : -1;
+  const slDist = Math.abs(entry - sl);
+
+  // Find preview span by trade id from the close-row parent
+  const rowId = form.closest('tr').id;  // "close-row-X"
+  const tradeId = rowId.replace('close-row-', '');
+  const preview = document.getElementById('preview-' + tradeId);
+  const resultSel = form.querySelector('[name="result"]');
+
+  if (!exit) {
+    preview.textContent = '';
+    return;
+  }
+
+  const pnl = (exit - entry) * mult * lot * PIP;
+  const rr  = slDist > 0 ? Math.abs(exit - entry) / slDist : 0;
+
+  preview.textContent = `${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}  ·  ${rr.toFixed(1)}R`;
+  preview.className = 'close-preview ' + (pnl > 0 ? 'green' : pnl < 0 ? 'red' : '');
+
+  // Auto-select result
+  if (Math.abs(pnl) < 0.50) {
+    resultSel.value = 'BE';
+  } else if (pnl > 0) {
+    resultSel.value = 'WIN';
+  } else {
+    resultSel.value = 'LOSS';
   }
 }
 </script>

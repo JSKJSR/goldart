@@ -102,10 +102,19 @@
       </div>
 
     </div>
+    <div class="live-calc-row" id="live-calc">
+      <span class="calc-label">Live PnL:</span>
+      <strong id="live-pnl">—</strong>
+      <span class="calc-sep">·</span>
+      <span class="calc-label">RR:</span>
+      <strong id="live-rr">—</strong>
+      <span class="calc-sep">·</span>
+      <span class="calc-label">Risk:</span>
+      <strong id="live-risk">—</strong>
+    </div>
     <p class="form-hint">
-      PnL and RR will be recalculated automatically when you save.
-      Current PnL: <strong>{{ '+' if (trade.pnl or 0) >= 0 }}${{ "%.2f"|format(trade.pnl or 0) }}</strong>
-      &nbsp;·&nbsp; RR: <strong>{{ trade.rr_achieved or '—' }}</strong>
+      PnL, RR, and Result update live as you type. Saved PnL:
+      <strong>{{ '+' if (trade.pnl or 0) >= 0 }}${{ "%.2f"|format(trade.pnl or 0) }}</strong>
     </p>
   </div>
 
@@ -157,4 +166,69 @@
   </div>
 
 </form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const PIP = 100.0;
+
+function $(sel) { return document.querySelector(sel); }
+function val(name) {
+  const el = document.querySelector(`[name="${name}"]`);
+  return el ? parseFloat(el.value) || 0 : 0;
+}
+function sel(name) {
+  const el = document.querySelector(`[name="${name}"]`);
+  return el ? el.value : '';
+}
+
+function recalc() {
+  const entry = val('entry_price'), sl = val('sl_price'),
+        exit  = val('exit_price'),  lot = val('lot_size');
+  const dir   = sel('direction');
+  const mult  = dir === 'LONG' ? 1 : -1;
+  const slDist = Math.abs(entry - sl);
+
+  // Risk: $ at risk based on SL distance
+  const risk = slDist * lot * PIP;
+  $('#live-risk').textContent = risk ? `$${risk.toFixed(2)}` : '—';
+
+  // PnL & RR only if exit price entered
+  if (!exit) {
+    $('#live-pnl').textContent = '—';
+    $('#live-pnl').className = '';
+    $('#live-rr').textContent = '—';
+    return;
+  }
+
+  const pnl = (exit - entry) * mult * lot * PIP;
+  const rr  = slDist > 0 ? Math.abs(exit - entry) / slDist : 0;
+
+  const pnlEl = $('#live-pnl');
+  pnlEl.textContent = `${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}`;
+  pnlEl.className = pnl > 0 ? 'green' : pnl < 0 ? 'red' : '';
+
+  $('#live-rr').textContent = rr.toFixed(2);
+
+  // Auto-select result based on PnL
+  const resultSel = document.querySelector('[name="result"]');
+  if (Math.abs(pnl) < 0.50) {
+    resultSel.value = 'BE';
+  } else if (pnl > 0) {
+    resultSel.value = 'WIN';
+  } else {
+    resultSel.value = 'LOSS';
+  }
+}
+
+// Bind to all relevant inputs
+['entry_price', 'sl_price', 'tp_price', 'exit_price', 'lot_size'].forEach(name => {
+  const el = document.querySelector(`[name="${name}"]`);
+  if (el) el.addEventListener('input', recalc);
+});
+document.querySelector('[name="direction"]').addEventListener('change', recalc);
+
+// Initial calculation
+recalc();
+</script>
 {% endblock %}
