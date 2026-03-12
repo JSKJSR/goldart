@@ -5,7 +5,7 @@ const TOTAL = 7;
 const UNLOCK_AT = 6;
 
 function updateScore() {
-  const boxes   = document.querySelectorAll("#checklistForm input[type=checkbox]");
+  const boxes   = document.querySelectorAll(".check-list input[type=checkbox]");
   const checked = [...boxes].filter(b => b.checked).length;
   const pct     = Math.round((checked / TOTAL) * 100);
 
