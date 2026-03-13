@@ -1,11 +1,12 @@
 # routes/analysis.py
 from flask import Blueprint, render_template, jsonify, request
-from core.data import fetch_ohlcv, DataFetchError
-from core.signals import analyse
-from core.risk import calculate
-from core.session import get_status
-from core import cache
-from config import SYMBOL
+from goldart.services.data import fetch_ohlcv, DataFetchError
+from goldart.services.signals import analyse
+from goldart.services.risk import calculate
+from goldart.services.session import get_status
+from goldart.services import cache
+from goldart.config import SYMBOL
+from goldart.blueprints.decorators import get_current_user_id
 
 analysis_bp  = Blueprint("analysis", __name__)
 SNAPSHOT_KEY = "snapshot"
@@ -13,7 +14,8 @@ SNAPSHOT_KEY = "snapshot"
 
 @analysis_bp.get("/")
 def index():
-    session = get_status()
+    user_id = get_current_user_id()
+    session = get_status(user_id)
     return render_template("analysis.html", symbol=SYMBOL, session=session)
 
 

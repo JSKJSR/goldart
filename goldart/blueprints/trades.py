@@ -1,14 +1,14 @@
 # routes/trades.py
 from flask import Blueprint, render_template, request, redirect, url_for, jsonify
 from datetime import date, datetime
-from db.queries import (
-    insert_trade, update_trade_result, update_trade_full,
+from goldart.database.queries import (
+    insert_trade, update_trade_result, update_trade_full, delete_trade,
     get_trade, get_all_trades, get_stats_summary,
-    get_trades_by_date, get_or_create_session,
-    increment_session, upsert_balance,
+    get_trades_by_date, get_or_create_session, upsert_balance,
 )
-from core.session import get_status, today
-from config import ACCOUNT_BALANCE, RISK_PER_TRADE
+from goldart.services.session import get_status
+from goldart.config import ACCOUNT_BALANCE
+from goldart.blueprints.decorators import get_current_user_id
 
 trades_bp = Blueprint("trades", __name__)
 
@@ -26,35 +26,36 @@ def _calc_pnl_rr(entry: float, exit_price: float, sl: float,
     return pnl, rr
 
 
-def _sync_session(date_str: str):
+def _sync_session(date_str: str, user_id: int):
     """Recompute session counters from actual trades for the given date."""
-    from db.queries import _db
-    trades = get_trades_by_date(date_str)
+    from goldart.database.queries import _db
+    trades = get_trades_by_date(date_str, user_id)
     closed = [t for t in trades if t.get("result")]
     trades_taken = len(closed)
     losses_taken = sum(1 for t in closed if t["result"] == "LOSS")
     daily_pnl = round(sum(t.get("pnl") or 0 for t in closed), 2)
 
     # Ensure session row exists then overwrite counters
-    get_or_create_session(date_str)
+    get_or_create_session(date_str, user_id)
     with _db() as cur:
         cur.execute("""
             UPDATE sessions
             SET trades_taken = %s, losses_taken = %s, daily_pnl = %s
-            WHERE date = %s
-        """, (trades_taken, losses_taken, daily_pnl, date_str))
+            WHERE date = %s AND user_id = %s
+        """, (trades_taken, losses_taken, daily_pnl, date_str, user_id))
 
     # Update account balance
-    stats = get_stats_summary()
-    upsert_balance(date_str, ACCOUNT_BALANCE + (stats["total_pnl"] or 0))
+    stats = get_stats_summary(user_id)
+    upsert_balance(date_str, user_id, ACCOUNT_BALANCE + (stats["total_pnl"] or 0))
 
 
 # ── Journal ───────────────────────────────────────────────────────────────────
 
 @trades_bp.get("/")
 def journal():
-    trades = get_all_trades(limit=50)
-    stats  = get_stats_summary()
+    user_id = get_current_user_id()
+    trades = get_all_trades(user_id, limit=50)
+    stats  = get_stats_summary(user_id)
     return render_template("journal.html", trades=trades, stats=stats)
 
 
@@ -62,14 +63,17 @@ def journal():
 
 @trades_bp.get("/new")
 def new_trade_form():
-    session = get_status()
+    user_id = get_current_user_id()
+    session = get_status(user_id)
     return render_template("trade_form.html", session=session, now=datetime.now())
 
 
 @trades_bp.post("/new")
 def save_trade():
+    user_id = get_current_user_id()
     f = request.form
     data = {
+        "user_id":         user_id,
         "date":            f.get("date", date.today().isoformat()),
         "time":            f.get("time", datetime.now().strftime("%H:%M")),
         "direction":       f.get("direction", "LONG"),
@@ -93,7 +97,8 @@ def save_trade():
 @trades_bp.post("/close/<int:trade_id>")
 def close_trade(trade_id: int):
     """Close an open trade — PnL and RR are calculated server-side."""
-    trade = get_trade(trade_id)
+    user_id = get_current_user_id()
+    trade = get_trade(trade_id, user_id)
     if not trade:
         return redirect(url_for("trades.journal"))
 
@@ -113,10 +118,10 @@ def close_trade(trade_id: int):
     if result == "BE":
         pnl = 0.0
 
-    update_trade_result(trade_id, exit_price, result, pnl, rr)
+    update_trade_result(trade_id, exit_price, result, pnl, rr, user_id)
 
     # Recompute session from actual trades (reliable, replaces increment)
-    _sync_session(trade["date"])
+    _sync_session(trade["date"], user_id)
 
     return redirect(url_for("trades.journal"))
 
@@ -125,7 +130,8 @@ def close_trade(trade_id: int):
 
 @trades_bp.get("/edit/<int:trade_id>")
 def edit_trade_form(trade_id: int):
-    trade = get_trade(trade_id)
+    user_id = get_current_user_id()
+    trade = get_trade(trade_id, user_id)
     if not trade:
         return redirect(url_for("trades.journal"))
     return render_template("edit_trade.html", trade=trade)
@@ -133,6 +139,7 @@ def edit_trade_form(trade_id: int):
 
 @trades_bp.post("/edit/<int:trade_id>")
 def edit_trade(trade_id: int):
+    user_id     = get_current_user_id()
     f           = request.form
     exit_raw    = f.get("exit_price", "").strip()
     result_raw  = f.get("result", "").strip().upper() or None
@@ -154,6 +161,7 @@ def edit_trade(trade_id: int):
         rr  = float(f.get("rr_achieved") or 0)
 
     data = {
+        "user_id":         user_id,
         "date":            f.get("date", date.today().isoformat()),
         "time":            f.get("time", "00:00"),
         "direction":       direction,
@@ -175,8 +183,23 @@ def edit_trade(trade_id: int):
     update_trade_full(trade_id, data)
 
     # Recompute session stats from actual trades for today
-    _sync_session(data["date"])
+    _sync_session(data["date"], user_id)
 
+    return redirect(url_for("trades.journal"))
+
+
+# ── Delete trade ──────────────────────────────────────────────────────────────
+
+@trades_bp.post("/delete/<int:trade_id>")
+def delete_trade_route(trade_id: int):
+    user_id = get_current_user_id()
+    trade = get_trade(trade_id, user_id)
+    if not trade:
+        return redirect(url_for("trades.journal"))
+
+    trade_date = trade["date"]
+    delete_trade(trade_id, user_id)
+    _sync_session(trade_date, user_id)
     return redirect(url_for("trades.journal"))
 
 
@@ -184,9 +207,11 @@ def edit_trade(trade_id: int):
 
 @trades_bp.get("/api/all")
 def api_trades():
-    return jsonify(get_all_trades())
+    user_id = get_current_user_id()
+    return jsonify(get_all_trades(user_id))
 
 
 @trades_bp.get("/api/stats")
 def api_stats():
-    return jsonify(get_stats_summary())
+    user_id = get_current_user_id()
+    return jsonify(get_stats_summary(user_id))

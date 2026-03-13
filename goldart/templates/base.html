@@ -31,9 +31,10 @@
   </ul>
 
   <div class="sidebar-account">
-    <div class="label">ACCOUNT</div>
+    <div class="label">{{ session.get('username', 'ACCOUNT') }}</div>
     <div class="balance">$2,000</div>
     <div class="label" id="daily-status">Loading…</div>
+    <a href="{{ url_for('auth.logout') }}" class="logout-link">Logout</a>
   </div>
 </nav>
 

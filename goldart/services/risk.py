@@ -2,7 +2,7 @@
 # Gold: 1 standard lot = 100 oz. Pip = $0.01. 1 lot pip value ≈ $1.00 per $0.01 move
 # At spot ~$2300: 1 lot moves $100 per $1 price move → pip_value_per_lot = $100 / $1
 
-from config import RISK_PER_TRADE, REWARD_PER_TRADE
+from goldart.config import RISK_PER_TRADE, REWARD_PER_TRADE
 
 
 def calculate(entry: float, sl: float, direction: str) -> dict:

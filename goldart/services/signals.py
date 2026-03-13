@@ -7,7 +7,7 @@
 from __future__ import annotations  # enables PEP 604 (X | Y) on Python 3.9
 
 import pandas as pd
-from core.indicators import (
+from goldart.services.indicators import (
     ema_values, detect_trend, detect_sr_levels,
     fib_levels, auto_swing
 )

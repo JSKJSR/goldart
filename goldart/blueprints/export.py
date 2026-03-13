@@ -1,6 +1,7 @@
 # routes/export.py — swap exporters independently
 from flask import Blueprint, send_file
-from db.queries import get_all_trades, get_stats_summary
+from goldart.database.queries import get_all_trades, get_stats_summary
+from goldart.blueprints.decorators import get_current_user_id
 import io
 from datetime import date
 
@@ -12,7 +13,8 @@ def to_excel():
     import openpyxl
     from openpyxl.styles import Font, PatternFill, Alignment
 
-    trades = get_all_trades(limit=500)
+    user_id = get_current_user_id()
+    trades = get_all_trades(user_id, limit=500)
     wb     = openpyxl.Workbook()
     ws     = wb.active
     ws.title = "Trades"
@@ -57,8 +59,9 @@ def to_pdf():
     from reportlab.lib.styles import getSampleStyleSheet
     from reportlab.lib import colors
 
-    trades = get_all_trades(limit=200)
-    stats  = get_stats_summary()
+    user_id = get_current_user_id()
+    trades = get_all_trades(user_id, limit=200)
+    stats  = get_stats_summary(user_id)
 
     buf = io.BytesIO()
     doc = SimpleDocTemplate(buf, pagesize=landscape(A4), title="GOLDART Report")

@@ -1,7 +1,8 @@
 # routes/dashboard.py
 from flask import Blueprint, render_template
-from core.session import get_status
-from db.queries import get_trades_by_date, get_stats_summary, get_balance_history
+from goldart.services.session import get_status
+from goldart.database.queries import get_trades_by_date, get_stats_summary, get_balance_history
+from goldart.blueprints.decorators import get_current_user_id
 from datetime import date
 
 dashboard_bp = Blueprint("dashboard", __name__)
@@ -9,11 +10,12 @@ dashboard_bp = Blueprint("dashboard", __name__)
 
 @dashboard_bp.get("/")
 def index():
-    session   = get_status()
+    user_id   = get_current_user_id()
+    session   = get_status(user_id)
     today_str = date.today().isoformat()
-    trades    = get_trades_by_date(today_str)
-    stats     = get_stats_summary()
-    history   = get_balance_history(30)
+    trades    = get_trades_by_date(today_str, user_id)
+    stats     = get_stats_summary(user_id)
+    history   = get_balance_history(user_id, 30)
 
     # Recompute session counters from actual trades (source of truth)
     closed = [t for t in trades if t.get("result")]

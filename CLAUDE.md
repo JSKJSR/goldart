@@ -10,9 +10,9 @@ Deployed on Vercel (serverless) with Supabase as the database.
 
 ```bash
 python app.py           # dev server → http://localhost:8080 (debug=True)
+pytest                  # run all tests
+ruff check .            # lint the codebase
 ```
-
-No test runner or linter is configured yet. Before adding one, check requirements.txt first.
 
 ---
 
@@ -30,26 +30,29 @@ No test runner or linter is configured yet. Before adding one, check requirement
 ## Architecture
 
 ```
-app.py              ← thin entry point: wires Flask + blueprints, nothing else
-config.py           ← single source of truth for ALL settings (read from .env)
-core/
-  data.py           ← fetch OHLCV from Twelve Data (swap here to change provider)
-  indicators.py     ← pure functions: EMA, swing detection, trend, S/R, Fibonacci
-  signals.py        ← combines indicators → tradeable signal dict + score (0–5)
-  risk.py           ← position sizing: lot size, TP, RR for XAU/USD
-  session.py        ← enforces daily limits (MAX_TRADES, MAX_LOSSES)
-  cache.py          ← in-memory TTL cache (60s); swap to Redis without touching routes
-routes/
-  dashboard.py      ← / (home)
-  analysis.py       ← /analysis  (signal snapshot + risk calculator)
-  trades.py         ← /trades    (journal CRUD, close/edit trades)
-  export.py         ← /export    (Excel + PDF download)
-db/
-  models.py         ← schema DDL + get_conn(); swap DB backend here
-  queries.py        ← all SQL; no raw SQL anywhere else
-templates/          ← Jinja2 HTML
-static/             ← CSS, JS, images
-api/index.py        ← Vercel serverless entry (wraps create_app())
+app.py              ← shim: imports and runs create_app() from goldart
+api/index.py        ← Vercel entry: imports create_app() from goldart
+goldart/
+  __init__.py       ← app factory: wires Flask, blueprints, static/templates
+  config.py         ← settings: source of truth (read from .env)
+  database/
+    models.py       ← schema DDL + get_conn(); swap DB backend here
+    queries.py      ← all SQL; no raw SQL anywhere else
+  services/
+    data.py         ← fetch OHLCV from Twelve Data (swap here to change provider)
+    indicators.py   ← pure functions: EMA, swing, trend, S/R, Fibonacci
+    signals.py      ← signal analysis: score (0–5)
+    risk.py         ← position sizing: lot size, TP, RR
+    session.py      ← daily limits: MAX_TRADES, MAX_LOSSES
+    cache.py        ← in-memory TTL cache (60s)
+  blueprints/
+    dashboard.py    ← / (home)
+    analysis.py     ← /analysis (signal snapshot + risk calculator)
+    trades.py       ← /trades   (journal CRUD)
+    export.py       ← /export   (Excel + PDF)
+  templates/        ← Jinja2 HTML
+  static/           ← CSS, JS, images
+tests/              ← unit and integration tests
 ```
 
 ---

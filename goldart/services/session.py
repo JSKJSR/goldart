@@ -1,19 +1,19 @@
 # core/session.py — enforces daily trading rules
 from datetime import date
-from config import MAX_TRADES_PER_DAY, MAX_LOSSES_PER_DAY
-from db.queries import get_or_create_session, set_session_status
+from goldart.config import MAX_TRADES_PER_DAY, MAX_LOSSES_PER_DAY
+from goldart.database.queries import get_or_create_session, set_session_status
 
 
 def today() -> str:
     return date.today().isoformat()
 
 
-def get_status() -> dict:
+def get_status(user_id: int) -> dict:
     """
     Returns current session state + whether trading is allowed.
     Called on every page load — thin and fast.
     """
-    s = get_or_create_session(today())
+    s = get_or_create_session(today(), user_id)
 
     trades_left  = MAX_TRADES_PER_DAY - s["trades_taken"]
     losses_left  = MAX_LOSSES_PER_DAY - s["losses_taken"]
@@ -22,10 +22,10 @@ def get_status() -> dict:
     block_reason = None
     if losses_left <= 0:
         block_reason = "Max daily losses reached (2). Trading locked."
-        _lock(s["date"], "MAX_LOSS")
+        _lock(s["date"], user_id, "MAX_LOSS")
     elif trades_left <= 0:
         block_reason = "Max daily trades reached (3). Trading locked."
-        _lock(s["date"], "MAX_TRADES")
+        _lock(s["date"], user_id, "MAX_TRADES")
 
     return {
         "date":         s["date"],
@@ -42,7 +42,7 @@ def get_status() -> dict:
     }
 
 
-def _lock(date_str: str, status: str):
-    s = get_or_create_session(date_str)
+def _lock(date_str: str, user_id: int, status: str):
+    s = get_or_create_session(date_str, user_id)
     if s["status"] == "ACTIVE":
-        set_session_status(date_str, status)
+        set_session_status(date_str, user_id, status)

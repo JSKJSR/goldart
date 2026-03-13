@@ -1,7 +1,7 @@
 # core/data.py — fetch OHLCV from Twelve Data; swap this file to change provider
 import requests
 import pandas as pd
-from config import TWELVE_DATA_API_KEY, TWELVE_DATA_BASE, SYMBOL
+from goldart.config import TWELVE_DATA_API_KEY, TWELVE_DATA_BASE, SYMBOL
 
 # Candle count to fetch per request (enough for EMA 21 + S/R detection)
 CANDLE_LIMIT = 100
