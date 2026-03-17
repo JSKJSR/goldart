@@ -209,8 +209,10 @@ def get_stats_summary(user_id: int) -> dict:
     with _db() as cur:
         cur.execute(sql, (user_id,))
         d = dict(cur.fetchone())
-    d["wins"]     = int(d["wins"]   or 0)
-    d["losses"]   = int(d["losses"] or 0)
-    d["total"]    = int(d["total"]  or 0)
-    d["win_rate"] = round(d["wins"] / d["total"] * 100, 1) if d["total"] else 0
+    d["wins"]      = int(d["wins"]   or 0)
+    d["losses"]    = int(d["losses"] or 0)
+    d["total"]     = int(d["total"]  or 0)
+    d["avg_rr"]    = float(d["avg_rr"]    or 0)
+    d["total_pnl"] = float(d["total_pnl"] or 0)
+    d["win_rate"]  = round(d["wins"] / d["total"] * 100, 1) if d["total"] else 0
     return d

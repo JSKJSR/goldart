@@ -46,7 +46,7 @@ def _sync_session(date_str: str, user_id: int):
 
     # Update account balance
     stats = get_stats_summary(user_id)
-    upsert_balance(date_str, user_id, ACCOUNT_BALANCE + (stats["total_pnl"] or 0))
+    upsert_balance(date_str, user_id, ACCOUNT_BALANCE + float(stats["total_pnl"] or 0))
 
 
 # ── Journal ───────────────────────────────────────────────────────────────────
