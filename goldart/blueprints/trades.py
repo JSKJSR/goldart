@@ -1,4 +1,5 @@
 # routes/trades.py
+import logging
 from flask import Blueprint, render_template, request, redirect, url_for, jsonify
 from datetime import date, datetime
 from goldart.database.queries import (
@@ -9,6 +10,8 @@ from goldart.database.queries import (
 from goldart.services.session import get_status
 from goldart.config import ACCOUNT_BALANCE
 from goldart.blueprints.decorators import get_current_user_id
+
+log = logging.getLogger(__name__)
 
 trades_bp = Blueprint("trades", __name__)
 
@@ -54,8 +57,13 @@ def _sync_session(date_str: str, user_id: int):
 @trades_bp.get("/")
 def journal():
     user_id = get_current_user_id()
-    trades = get_all_trades(user_id, limit=50)
-    stats  = get_stats_summary(user_id)
+    try:
+        trades = get_all_trades(user_id, limit=50)
+        stats  = get_stats_summary(user_id)
+    except Exception:
+        log.exception("Failed to load journal for user %s", user_id)
+        trades, stats = [], {"total": 0, "wins": 0, "losses": 0,
+                             "avg_rr": 0, "total_pnl": 0, "win_rate": 0}
     return render_template("journal.html", trades=trades, stats=stats)
 
 
@@ -102,26 +110,33 @@ def close_trade(trade_id: int):
     if not trade:
         return redirect(url_for("trades.journal"))
 
-    f          = request.form
-    exit_price = float(f.get("exit_price") or 0)
-    result     = f.get("result", "LOSS").upper()
+    try:
+        f          = request.form
+        exit_price = float(f.get("exit_price") or 0)
+        result     = f.get("result", "LOSS").upper()
 
-    pnl, rr = _calc_pnl_rr(
-        entry      = trade["entry_price"],
-        exit_price = exit_price,
-        sl         = trade["sl_price"],
-        lot_size   = trade["lot_size"],
-        direction  = trade["direction"],
-    )
+        pnl, rr = _calc_pnl_rr(
+            entry      = float(trade["entry_price"] or 0),
+            exit_price = exit_price,
+            sl         = float(trade["sl_price"] or 0),
+            lot_size   = float(trade["lot_size"] or 0),
+            direction  = trade["direction"],
+        )
 
-    # BE override: force PnL to 0
-    if result == "BE":
-        pnl = 0.0
+        # BE override: force PnL to 0
+        if result == "BE":
+            pnl = 0.0
 
-    update_trade_result(trade_id, exit_price, result, pnl, rr, user_id)
+        update_trade_result(trade_id, exit_price, result, pnl, rr, user_id)
 
-    # Recompute session from actual trades (reliable, replaces increment)
-    _sync_session(trade["date"], user_id)
+        # Recompute session from actual trades (reliable, replaces increment)
+        _sync_session(str(trade["date"]), user_id)
+    except Exception:
+        log.exception("Failed to close trade %s for user %s", trade_id, user_id)
+        return render_template("error.html",
+            title="Failed to close trade",
+            message=f"Trade #{trade_id} could not be closed. Check the trade data.",
+        ), 500
 
     return redirect(url_for("trades.journal"))
 
@@ -131,7 +146,14 @@ def close_trade(trade_id: int):
 @trades_bp.get("/edit/<int:trade_id>")
 def edit_trade_form(trade_id: int):
     user_id = get_current_user_id()
-    trade = get_trade(trade_id, user_id)
+    try:
+        trade = get_trade(trade_id, user_id)
+    except Exception:
+        log.exception("Failed to load trade %s for user %s", trade_id, user_id)
+        return render_template("error.html",
+            title="Could not load trade",
+            message=f"Trade #{trade_id} failed to load from the database.",
+        ), 500
     if not trade:
         return redirect(url_for("trades.journal"))
     return render_template("edit_trade.html", trade=trade)
@@ -139,51 +161,58 @@ def edit_trade_form(trade_id: int):
 
 @trades_bp.post("/edit/<int:trade_id>")
 def edit_trade(trade_id: int):
-    user_id     = get_current_user_id()
-    f           = request.form
-    exit_raw    = f.get("exit_price", "").strip()
-    result_raw  = f.get("result", "").strip().upper() or None
+    user_id = get_current_user_id()
+    try:
+        f           = request.form
+        exit_raw    = f.get("exit_price", "").strip()
+        result_raw  = f.get("result", "").strip().upper() or None
 
-    entry     = float(f.get("entry_price") or 0)
-    sl        = float(f.get("sl_price") or 0)
-    lot_size  = float(f.get("lot_size") or 0)
-    direction = f.get("direction", "LONG")
+        entry     = float(f.get("entry_price") or 0)
+        sl        = float(f.get("sl_price") or 0)
+        lot_size  = float(f.get("lot_size") or 0)
+        direction = f.get("direction", "LONG")
 
-    # Auto-calculate PnL/RR if exit price is supplied
-    if exit_raw and result_raw:
-        exit_price = float(exit_raw)
-        pnl, rr = _calc_pnl_rr(entry, exit_price, sl, lot_size, direction)
-        if result_raw == "BE":
-            pnl = 0.0
-    else:
-        exit_price = float(exit_raw) if exit_raw else None
-        pnl = float(f.get("pnl") or 0)
-        rr  = float(f.get("rr_achieved") or 0)
+        # Auto-calculate PnL/RR if exit price is supplied
+        if exit_raw and result_raw:
+            exit_price = float(exit_raw)
+            pnl, rr = _calc_pnl_rr(entry, exit_price, sl, lot_size, direction)
+            if result_raw == "BE":
+                pnl = 0.0
+        else:
+            exit_price = float(exit_raw) if exit_raw else None
+            pnl = float(f.get("pnl") or 0)
+            rr  = float(f.get("rr_achieved") or 0)
 
-    data = {
-        "user_id":         user_id,
-        "date":            f.get("date", date.today().isoformat()),
-        "time":            f.get("time", "00:00"),
-        "direction":       direction,
-        "bias_4h":         f.get("bias_4h", ""),
-        "bias_1h":         f.get("bias_1h", ""),
-        "entry_price":     entry,
-        "sl_price":        sl,
-        "tp_price":        float(f.get("tp_price") or 0),
-        "lot_size":        lot_size,
-        "exit_price":      exit_price,
-        "result":          result_raw,
-        "pnl":             pnl,
-        "rr_achieved":     rr,
-        "checklist_score": int(f.get("checklist_score") or 0),
-        "setup_rating":    int(f.get("setup_rating") or 3),
-        "emotion":         f.get("emotion", ""),
-        "notes":           f.get("notes", ""),
-    }
-    update_trade_full(trade_id, data)
+        data = {
+            "user_id":         user_id,
+            "date":            f.get("date", date.today().isoformat()),
+            "time":            f.get("time", "00:00"),
+            "direction":       direction,
+            "bias_4h":         f.get("bias_4h", ""),
+            "bias_1h":         f.get("bias_1h", ""),
+            "entry_price":     entry,
+            "sl_price":        sl,
+            "tp_price":        float(f.get("tp_price") or 0),
+            "lot_size":        lot_size,
+            "exit_price":      exit_price,
+            "result":          result_raw,
+            "pnl":             pnl,
+            "rr_achieved":     rr,
+            "checklist_score": int(f.get("checklist_score") or 0),
+            "setup_rating":    int(f.get("setup_rating") or 3),
+            "emotion":         f.get("emotion", ""),
+            "notes":           f.get("notes", ""),
+        }
+        update_trade_full(trade_id, data)
 
-    # Recompute session stats from actual trades for today
-    _sync_session(data["date"], user_id)
+        # Recompute session stats from actual trades for today
+        _sync_session(data["date"], user_id)
+    except Exception:
+        log.exception("Failed to save edit for trade %s, user %s", trade_id, user_id)
+        return render_template("error.html",
+            title="Failed to save trade",
+            message=f"Trade #{trade_id} could not be saved. Check your input values.",
+        ), 500
 
     return redirect(url_for("trades.journal"))
 

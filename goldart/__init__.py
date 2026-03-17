@@ -1,5 +1,6 @@
 import logging
-from flask import Flask, jsonify, session, redirect, url_for, request
+import traceback
+from flask import Flask, jsonify, session, redirect, url_for, request, render_template
 from goldart.config import SECRET_KEY
 from goldart.database.models import init_db
 from goldart.blueprints.dashboard import dashboard_bp
@@ -45,6 +46,26 @@ def create_app():
         if "user_id" not in session:
             return redirect(url_for("auth.login"))
         return None
+
+    # ── Error handlers ────────────────────────────────────────────────────
+    @app.errorhandler(404)
+    def not_found(e):
+        return render_template("error.html",
+            icon="◇",
+            title="Page not found",
+            message="The page you're looking for doesn't exist.",
+        ), 404
+
+    @app.errorhandler(500)
+    def server_error(e):
+        tb = traceback.format_exc()
+        logging.error("500 error on %s: %s\n%s", request.url, e, tb)
+        return render_template("error.html",
+            icon="⚠",
+            title="Something went wrong",
+            message=f"{request.method} {request.path} failed — {e.__class__.__name__}: {e}",
+            detail=tb if tb.strip() != "NoneType: None" else str(e),
+        ), 500
 
     @app.get("/health")
     def health():
