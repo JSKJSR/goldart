@@ -50,6 +50,27 @@ body { display: flex; }
   min-height: 100vh;
 }
 
+/* ── Flash banners ─────────────────────────────────────────────────────── */
+.flash-banner {
+  padding: 10px 16px;
+  border-radius: 4px;
+  font-size: 12px;
+  margin-bottom: 16px;
+  animation: flash-in 0.3s ease-out, flash-out 0.4s 4s ease-in forwards;
+}
+.flash-success {
+  background: rgba(38,169,108,0.12);
+  border: 1px solid var(--green);
+  color: var(--green);
+}
+.flash-error {
+  background: rgba(224,82,82,0.12);
+  border: 1px solid var(--red);
+  color: var(--red);
+}
+@keyframes flash-in  { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes flash-out { from { opacity: 1; } to { opacity: 0; } }
+
 /* ── Sidebar ─────────────────────────────────────────────────────────────── */
 .sidebar-logo {
   padding: 0 16px 20px;

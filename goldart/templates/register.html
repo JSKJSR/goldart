@@ -44,7 +44,9 @@
     }
     .auth-card button:hover { background: var(--gold-dim); }
     .auth-card .link { margin-top: 18px; font-size: 12px; color: var(--muted); }
-    .flash { color: var(--red); font-size: 12px; margin-bottom: 14px; }
+    .flash { font-size: 12px; margin-bottom: 14px; }
+    .flash-error { color: var(--red); }
+    .flash-success { color: var(--green); }
   </style>
 </head>
 <body>
@@ -52,10 +54,10 @@
     <h1>GOLDART</h1>
     <div class="subtitle">Create your account</div>
 
-    {% with messages = get_flashed_messages() %}
+    {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
-        {% for msg in messages %}
-          <div class="flash">{{ msg }}</div>
+        {% for category, msg in messages %}
+          <div class="flash flash-{{ category }}">{{ msg }}</div>
         {% endfor %}
       {% endif %}
     {% endwith %}

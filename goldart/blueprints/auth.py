@@ -28,6 +28,7 @@ def login_post():
     session.clear()
     session["user_id"] = user["id"]
     session["username"] = user["username"]
+    flash(f"Welcome back, {user['username']}!", "success")
     return redirect(url_for("dashboard.index"))
 
 
@@ -69,11 +70,16 @@ def register_post():
         return render_template("register.html"), 400
 
     password_hash = generate_password_hash(password, method="pbkdf2:sha256")
-    user_id = create_user(username, email, password_hash)
+    try:
+        user_id = create_user(username, email, password_hash)
+    except Exception:
+        flash("Registration failed — please try again.", "error")
+        return render_template("register.html"), 500
 
     session.clear()
     session["user_id"] = user_id
     session["username"] = username
+    flash(f"Welcome, {username}! Your account is ready.", "success")
     return redirect(url_for("dashboard.index"))
 
 
