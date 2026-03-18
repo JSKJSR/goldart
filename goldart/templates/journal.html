@@ -123,15 +123,34 @@
     {% endfor %}
   </tbody>
 </table>
+
+<!-- Pagination -->
+{% if total_pages > 1 %}
+<div class="pagination">
+  {% if page > 1 %}
+    <a href="{{ url_for('trades.journal', page=page-1) }}" class="pagination-btn">← Prev</a>
+  {% else %}
+    <span class="pagination-btn pagination-disabled">← Prev</span>
+  {% endif %}
+
+  <span class="pagination-info">Page {{ page }} of {{ total_pages }}</span>
+
+  {% if page < total_pages %}
+    <a href="{{ url_for('trades.journal', page=page+1) }}" class="pagination-btn">Next →</a>
+  {% else %}
+    <span class="pagination-btn pagination-disabled">Next →</span>
+  {% endif %}
+</div>
+{% endif %}
+
 {% else %}
   <p class="empty-state">No trades yet. <a href="{{ url_for('analysis.index') }}">→ Go to Analysis</a></p>
 {% endif %}
 {% endblock %}
 
 {% block scripts %}
+<script src="{{ url_for('static', filename='js/trade-calc.js') }}"></script>
 <script>
-const PIP = 100.0;
-
 function toggleClose(id) {
   const row = document.getElementById("close-row-" + id);
   if (!row) return;
@@ -149,11 +168,8 @@ function liveClose(input) {
   const lot   = parseFloat(form.dataset.lot) || 0;
   const dir   = form.dataset.dir;
   const exit  = parseFloat(input.value) || 0;
-  const mult  = dir === 'LONG' ? 1 : -1;
-  const slDist = Math.abs(entry - sl);
 
-  // Find preview span by trade id from the close-row parent
-  const rowId = form.closest('tr').id;  // "close-row-X"
+  const rowId = form.closest('tr').id;
   const tradeId = rowId.replace('close-row-', '');
   const preview = document.getElementById('preview-' + tradeId);
   const resultSel = form.querySelector('[name="result"]');
@@ -163,20 +179,12 @@ function liveClose(input) {
     return;
   }
 
-  const pnl = (exit - entry) * mult * lot * PIP;
-  const rr  = slDist > 0 ? Math.abs(exit - entry) / slDist : 0;
+  const { pnl, rr } = calcTradePnl(entry, exit, sl, lot, dir);
 
   preview.textContent = `${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}  ·  ${rr.toFixed(1)}R`;
   preview.className = 'close-preview ' + (pnl > 0 ? 'green' : pnl < 0 ? 'red' : '');
 
-  // Auto-select result
-  if (Math.abs(pnl) < 0.50) {
-    resultSel.value = 'BE';
-  } else if (pnl > 0) {
-    resultSel.value = 'WIN';
-  } else {
-    resultSel.value = 'LOSS';
-  }
+  resultSel.value = autoSelectResult(pnl);
 }
 </script>
 {% endblock %}

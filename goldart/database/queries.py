@@ -183,6 +183,23 @@ def upsert_balance(date_str: str, user_id: int, balance: float, note: str = ""):
         """, (date_str, user_id, balance, note))
 
 
+def update_session_counters(date_str: str, user_id: int,
+                            trades_taken: int, losses_taken: int,
+                            daily_pnl: float):
+    with _db() as cur:
+        cur.execute("""
+            UPDATE sessions
+            SET trades_taken=%s, losses_taken=%s, daily_pnl=%s
+            WHERE date=%s AND user_id=%s
+        """, (trades_taken, losses_taken, daily_pnl, date_str, user_id))
+
+
+def get_trade_count(user_id: int) -> int:
+    with _db() as cur:
+        cur.execute("SELECT COUNT(*) AS cnt FROM trades WHERE user_id=%s", (user_id,))
+        return cur.fetchone()["cnt"]
+
+
 def get_balance_history(user_id: int, days: int = 30) -> list[dict]:
     with _db() as cur:
         cur.execute(

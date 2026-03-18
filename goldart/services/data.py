@@ -53,17 +53,3 @@ def fetch_ohlcv(timeframe: str = "1h") -> pd.DataFrame:
     return df[cols]
 
 
-def get_current_price() -> float:
-    """Latest close price for XAU/USD."""
-    if not TWELVE_DATA_API_KEY:
-        raise DataFetchError("TWELVE_DATA_API_KEY not set in .env")
-
-    params = {"symbol": SYMBOL, "apikey": TWELVE_DATA_API_KEY}
-    resp = requests.get(f"{TWELVE_DATA_BASE}/price", params=params, timeout=10)
-    resp.raise_for_status()
-    payload = resp.json()
-
-    if "price" not in payload:
-        raise DataFetchError(payload.get("message", "No price returned"))
-
-    return float(payload["price"])

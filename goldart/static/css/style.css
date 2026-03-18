@@ -852,3 +852,81 @@ textarea { resize: vertical; }
   font-size: 12px; color: var(--muted); margin-top: 8px; padding: 0 4px;
 }
 .form-hint strong { color: var(--text); }
+
+/* ── Auth Pages ─────────────────────────────────────────────────────────── */
+body.auth-page {
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+}
+.auth-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 40px 36px;
+  width: 360px;
+  text-align: center;
+}
+.auth-card h1 { color: var(--gold); font-size: 24px; margin-bottom: 6px; }
+.auth-card .subtitle { color: var(--muted); font-size: 12px; margin-bottom: 28px; }
+.auth-card input {
+  width: 100%;
+  padding: 10px 12px;
+  margin-bottom: 14px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 13px;
+}
+.auth-card input:focus { outline: none; border-color: var(--gold); }
+.auth-card button {
+  width: 100%;
+  padding: 10px;
+  background: var(--gold);
+  color: var(--bg);
+  border: none;
+  border-radius: 4px;
+  font-family: var(--font);
+  font-weight: bold;
+  font-size: 13px;
+  cursor: pointer;
+  margin-top: 4px;
+}
+.auth-card button:hover { background: var(--gold-dim); }
+.auth-card .link { margin-top: 18px; font-size: 12px; color: var(--muted); }
+.auth-card .flash { font-size: 12px; margin-bottom: 14px; }
+.auth-card .flash-error { color: var(--red); }
+.auth-card .flash-success { color: var(--green); }
+
+/* ── Pagination ─────────────────────────────────────────────────────────── */
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 16px 0;
+}
+.pagination-btn {
+  padding: 6px 14px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 12px;
+  font-family: var(--font);
+  color: var(--gold);
+  text-decoration: none;
+  background: var(--bg2);
+  transition: border-color 0.15s, background 0.15s;
+}
+.pagination-btn:hover { border-color: var(--gold); background: var(--bg3); }
+.pagination-disabled {
+  color: var(--muted);
+  border-color: var(--border);
+  pointer-events: none;
+  opacity: 0.4;
+}
+.pagination-info {
+  font-size: 12px;
+  color: var(--muted);
+}

@@ -5,51 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>GOLDART — Register</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-  <style>
-    body { justify-content: center; align-items: center; min-height: 100vh; }
-    .auth-card {
-      background: var(--bg2);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 40px 36px;
-      width: 360px;
-      text-align: center;
-    }
-    .auth-card h1 { color: var(--gold); font-size: 24px; margin-bottom: 6px; }
-    .auth-card .subtitle { color: var(--muted); font-size: 12px; margin-bottom: 28px; }
-    .auth-card input {
-      width: 100%;
-      padding: 10px 12px;
-      margin-bottom: 14px;
-      background: var(--bg3);
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      color: var(--text);
-      font-family: var(--font);
-      font-size: 13px;
-    }
-    .auth-card input:focus { outline: none; border-color: var(--gold); }
-    .auth-card button {
-      width: 100%;
-      padding: 10px;
-      background: var(--gold);
-      color: var(--bg);
-      border: none;
-      border-radius: 4px;
-      font-family: var(--font);
-      font-weight: bold;
-      font-size: 13px;
-      cursor: pointer;
-      margin-top: 4px;
-    }
-    .auth-card button:hover { background: var(--gold-dim); }
-    .auth-card .link { margin-top: 18px; font-size: 12px; color: var(--muted); }
-    .flash { font-size: 12px; margin-bottom: 14px; }
-    .flash-error { color: var(--red); }
-    .flash-success { color: var(--green); }
-  </style>
 </head>
-<body>
+<body class="auth-page">
   <div class="auth-card">
     <h1>GOLDART</h1>
     <div class="subtitle">Create your account</div>

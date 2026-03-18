@@ -169,9 +169,8 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="{{ url_for('static', filename='js/trade-calc.js') }}"></script>
 <script>
-const PIP = 100.0;
-
 function $(sel) { return document.querySelector(sel); }
 function val(name) {
   const el = document.querySelector(`[name="${name}"]`);
@@ -186,14 +185,11 @@ function recalc() {
   const entry = val('entry_price'), sl = val('sl_price'),
         exit  = val('exit_price'),  lot = val('lot_size');
   const dir   = sel('direction');
-  const mult  = dir === 'LONG' ? 1 : -1;
   const slDist = Math.abs(entry - sl);
 
-  // Risk: $ at risk based on SL distance
-  const risk = slDist * lot * PIP;
+  const risk = slDist * lot * GOLD_PIP;
   $('#live-risk').textContent = risk ? `$${risk.toFixed(2)}` : '—';
 
-  // PnL & RR only if exit price entered
   if (!exit) {
     $('#live-pnl').textContent = '—';
     $('#live-pnl').className = '';
@@ -201,8 +197,7 @@ function recalc() {
     return;
   }
 
-  const pnl = (exit - entry) * mult * lot * PIP;
-  const rr  = slDist > 0 ? Math.abs(exit - entry) / slDist : 0;
+  const { pnl, rr } = calcTradePnl(entry, exit, sl, lot, dir);
 
   const pnlEl = $('#live-pnl');
   pnlEl.textContent = `${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}`;
@@ -210,25 +205,15 @@ function recalc() {
 
   $('#live-rr').textContent = rr.toFixed(2);
 
-  // Auto-select result based on PnL
-  const resultSel = document.querySelector('[name="result"]');
-  if (Math.abs(pnl) < 0.50) {
-    resultSel.value = 'BE';
-  } else if (pnl > 0) {
-    resultSel.value = 'WIN';
-  } else {
-    resultSel.value = 'LOSS';
-  }
+  document.querySelector('[name="result"]').value = autoSelectResult(pnl);
 }
 
-// Bind to all relevant inputs
 ['entry_price', 'sl_price', 'tp_price', 'exit_price', 'lot_size'].forEach(name => {
   const el = document.querySelector(`[name="${name}"]`);
   if (el) el.addEventListener('input', recalc);
 });
 document.querySelector('[name="direction"]').addEventListener('change', recalc);
 
-// Initial calculation
 recalc();
 </script>
 {% endblock %}
