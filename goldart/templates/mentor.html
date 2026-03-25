@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% block title %}AI Mentor — GOLDART{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>AI Mentor <span class="symbol-tag">XAU/USD</span></h1>
+  <div class="header-controls">
+    <span id="cacheNote" class="muted" style="font-size:11px"></span>
+    <button class="btn-primary" id="mentorBtn">Get Analysis</button>
+  </div>
+</div>
+
+<div class="mentor-output panel-block" id="mentorOutput">
+  <div class="muted" style="padding:20px 0;text-align:center">
+    Click <strong>Get Analysis</strong> to receive personalized feedback on your trading journal.
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const btn    = document.getElementById("mentorBtn");
+const output = document.getElementById("mentorOutput");
+const note   = document.getElementById("cacheNote");
+let hasResult = false;
+
+btn.addEventListener("click", async function() {
+  btn.disabled = true;
+  btn.textContent = "Analyzing...";
+  output.innerHTML = '<div class="muted" style="padding:20px 0;text-align:center">Thinking...</div>';
+
+  try {
+    const force = hasResult ? "1" : "0";
+    const res = await api(`/mentor/api/analyze?force=${force}`, { method: "POST" });
+
+    if (res.error) {
+      output.innerHTML = `<div class="red" style="padding:16px">${res.error}</div>`;
+    } else {
+      output.innerHTML = formatMentor(res.analysis);
+      hasResult = true;
+      if (res.generated_at) {
+        const modeLabel = res.mode === "ai" ? "AI" : "local";
+        note.textContent = res.cached
+          ? `cached (${modeLabel}) — generated today at ${res.generated_at}`
+          : `${modeLabel} analysis at ${res.generated_at}`;
+      }
+      btn.textContent = "Refresh Analysis";
+    }
+  } catch (e) {
+    output.innerHTML = `<div class="red" style="padding:16px">Failed: ${e.message}</div>`;
+  }
+
+  btn.disabled = false;
+  if (!hasResult) btn.textContent = "Get Analysis";
+});
+
+function formatMentor(text) {
+  const lines = text.split('\n');
+  let html = '';
+  let inList = false;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+
+    if (trimmed.startsWith('## ')) {
+      if (inList) { html += '</ul>'; inList = false; }
+      html += `<h3 class="mentor-heading">${trimmed.slice(3)}</h3>`;
+    } else if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
+      if (!inList) { html += '<ul class="mentor-list">'; inList = true; }
+      html += `<li>${formatInline(trimmed.slice(2))}</li>`;
+    } else if (trimmed === '') {
+      if (inList) { html += '</ul>'; inList = false; }
+    } else {
+      if (inList) { html += '</ul>'; inList = false; }
+      html += `<p class="mentor-para">${formatInline(trimmed)}</p>`;
+    }
+  }
+  if (inList) html += '</ul>';
+  return html;
+}
+
+function formatInline(text) {
+  return text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+}
+</script>
+
+<style>
+.mentor-output {
+  min-height: 200px;
+  max-width: 800px;
+  line-height: 1.7;
+}
+.mentor-heading {
+  color: var(--gold);
+  font-size: 13px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  margin: 20px 0 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.mentor-heading:first-child {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+.mentor-para {
+  color: var(--text);
+  font-size: 12px;
+  margin: 6px 0;
+}
+.mentor-list {
+  list-style: none;
+  padding: 0;
+  margin: 6px 0;
+}
+.mentor-list li {
+  font-size: 12px;
+  color: var(--text);
+  padding: 4px 0 4px 16px;
+  position: relative;
+}
+.mentor-list li::before {
+  content: "▸";
+  color: var(--gold);
+  position: absolute;
+  left: 0;
+}
+.mentor-list li strong {
+  color: var(--gold);
+}
+</style>
+{% endblock %}

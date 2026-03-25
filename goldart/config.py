@@ -21,6 +21,10 @@ TIMEFRAMES = ["1h", "4h", "15min"]
 TWELVE_DATA_API_KEY = os.getenv("TWELVE_DATA_API_KEY", "")
 TWELVE_DATA_BASE    = "https://api.twelvedata.com"
 
+# --- AI Mentor ---
+ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
+MENTOR_MODEL      = os.getenv("MENTOR_MODEL", "claude-haiku-4-5-20241022")
+
 # --- App ---
 SECRET_KEY = os.getenv("SECRET_KEY", "goldart-dev-key")
 

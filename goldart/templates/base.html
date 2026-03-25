@@ -25,6 +25,9 @@
     <li><a href="{{ url_for('trades.journal') }}"    class="{% if request.blueprint == 'trades' %}active{% endif %}">
       <span class="icon">◫</span> Journal
     </a></li>
+    <li><a href="{{ url_for('mentor.index') }}"     class="{% if request.blueprint == 'mentor' %}active{% endif %}">
+      <span class="icon">◉</span> Mentor
+    </a></li>
     <li><a href="{{ url_for('export.to_excel') }}">
       <span class="icon">↗</span> Export
     </a></li>

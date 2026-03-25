@@ -8,6 +8,7 @@ from goldart.blueprints.analysis  import analysis_bp
 from goldart.blueprints.trades    import trades_bp
 from goldart.blueprints.export    import export_bp
 from goldart.blueprints.auth      import auth_bp
+from goldart.blueprints.mentor    import mentor_bp
 
 _DB_OK = False
 
@@ -37,6 +38,7 @@ def create_app():
     app.register_blueprint(analysis_bp,   url_prefix="/analysis")
     app.register_blueprint(trades_bp,     url_prefix="/trades")
     app.register_blueprint(export_bp,     url_prefix="/export")
+    app.register_blueprint(mentor_bp,     url_prefix="/mentor")
 
     @app.before_request
     def require_login():
