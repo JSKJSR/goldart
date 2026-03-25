@@ -96,6 +96,34 @@
     </div>
   </div>
 
+  <div class="form-section close-trade-section">
+    <div class="form-section-title">
+      <label style="cursor:pointer;display:flex;align-items:center;gap:0.5rem">
+        <input type="checkbox" id="close-now-toggle">
+        CLOSE TRADE (optional — fill if trade is already done)
+      </label>
+    </div>
+    <div id="close-now-fields" class="form-grid" style="display:none">
+      <div class="field">
+        <label>Exit Price</label>
+        <input type="number" name="exit_price" step="0.01" id="exit-price-input"
+               oninput="previewPnl()">
+      </div>
+      <div class="field">
+        <label>Result</label>
+        <select name="result" id="result-select">
+          <option value="">—</option>
+          <option value="WIN">WIN</option>
+          <option value="LOSS">LOSS</option>
+          <option value="BE">BE (Break Even)</option>
+        </select>
+      </div>
+      <div class="field" style="display:flex;align-items:flex-end">
+        <span id="pnl-preview" class="close-preview"></span>
+      </div>
+    </div>
+  </div>
+
   <div class="form-actions">
     <a href="{{ url_for('trades.journal') }}" class="btn-ghost">Cancel</a>
     <button type="submit" class="btn-primary">✅ Save Trade</button>
@@ -105,6 +133,7 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="{{ url_for('static', filename='js/trade-calc.js') }}"></script>
 <script>
 (function() {
   const p = new URLSearchParams(window.location.search);
@@ -119,6 +148,38 @@
     const sel = document.querySelector('[name="direction"]');
     if (sel) sel.value = dir;
   }
+
+  // Toggle close-trade section
+  const toggle = document.getElementById('close-now-toggle');
+  const fields = document.getElementById('close-now-fields');
+  toggle.addEventListener('change', () => {
+    fields.style.display = toggle.checked ? '' : 'none';
+    if (!toggle.checked) {
+      document.getElementById('exit-price-input').value = '';
+      document.getElementById('result-select').value = '';
+      document.getElementById('pnl-preview').textContent = '';
+    }
+  });
 })();
+
+function previewPnl() {
+  const entry = parseFloat(document.querySelector('[name="entry_price"]').value) || 0;
+  const sl    = parseFloat(document.querySelector('[name="sl_price"]').value) || 0;
+  const lot   = parseFloat(document.querySelector('[name="lot_size"]').value) || 0;
+  const exit  = parseFloat(document.getElementById('exit-price-input').value) || 0;
+  const dir   = document.querySelector('[name="direction"]').value;
+  const prev  = document.getElementById('pnl-preview');
+  const sel   = document.getElementById('result-select');
+
+  if (!entry || !exit) { prev.textContent = ''; return; }
+
+  const { pnl, rr } = calcTradePnl(entry, exit, sl, lot, dir);
+  const sign = pnl >= 0 ? '+' : '';
+  prev.textContent = `${sign}$${pnl.toFixed(2)}  |  RR ${rr.toFixed(2)}`;
+  prev.style.color = pnl >= 0 ? 'var(--green)' : 'var(--red)';
+
+  // Auto-select result
+  sel.value = autoSelectResult(pnl);
+}
 </script>
 {% endblock %}

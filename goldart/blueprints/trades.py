@@ -9,6 +9,7 @@ from goldart.database.queries import (
 from goldart.services.session import get_status
 from goldart.services.trades import (
     calc_pnl_rr, sync_session, parse_new_trade_form, build_edit_trade_data,
+    _clean_price,
 )
 from goldart.blueprints.decorators import get_current_user_id
 
@@ -52,7 +53,25 @@ def new_trade_form():
 def save_trade():
     user_id = get_current_user_id()
     data = parse_new_trade_form(request.form, user_id)
-    insert_trade(data)
+    trade_id = insert_trade(data)
+
+    # If exit price provided, close the trade immediately
+    exit_raw = request.form.get("exit_price", "").strip()
+    result_raw = request.form.get("result", "").strip().upper()
+    if exit_raw and result_raw:
+        exit_price = _clean_price(exit_raw)
+        pnl, rr = calc_pnl_rr(
+            entry=data["entry_price"],
+            exit_price=exit_price,
+            sl=data["sl_price"],
+            lot_size=data["lot_size"],
+            direction=data["direction"],
+        )
+        if result_raw == "BE":
+            pnl = 0.0
+        update_trade_result(trade_id, exit_price, result_raw, pnl, rr, user_id)
+        sync_session(data["date"], user_id)
+
     return redirect(url_for("trades.journal"))
 
 
@@ -68,14 +87,14 @@ def close_trade(trade_id: int):
 
     try:
         f = request.form
-        exit_price = float(f.get("exit_price") or 0)
+        exit_price = _clean_price(f.get("exit_price"))
         result = f.get("result", "LOSS").upper()
 
         pnl, rr = calc_pnl_rr(
-            entry=float(trade["entry_price"] or 0),
+            entry=_clean_price(trade.get("entry_price")),
             exit_price=exit_price,
-            sl=float(trade["sl_price"] or 0),
-            lot_size=float(trade["lot_size"] or 0),
+            sl=_clean_price(trade.get("sl_price")),
+            lot_size=_clean_price(trade.get("lot_size")),
             direction=trade["direction"],
         )
 

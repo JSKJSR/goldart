@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from datetime import date, datetime
 from goldart.database.queries import (
     get_trades_by_date, get_or_create_session, update_session_counters,
@@ -10,6 +11,18 @@ from goldart.config import ACCOUNT_BALANCE
 # Gold: 1 lot = 100 oz -> $100 PnL per $1 price move per lot
 # (same constant as risk.py — pip_value_per_lot)
 _PIP_VALUE = 100.0
+
+
+def _clean_price(raw: str | None, decimals: int = 2) -> float:
+    """Parse a formatted number like '4,544.472' → 4544.47.
+
+    Strips commas, invisible Unicode chars (e.g. \u2069), and whitespace,
+    then rounds to *decimals* places.
+    """
+    if not raw:
+        return 0.0
+    cleaned = re.sub(r"[^\d.\-]", "", str(raw))
+    return round(float(cleaned), decimals) if cleaned else 0.0
 
 
 def calc_pnl_rr(entry: float, exit_price: float, sl: float,
@@ -46,10 +59,10 @@ def parse_new_trade_form(form, user_id: int) -> dict:
         "direction":       form.get("direction", "LONG"),
         "bias_4h":         form.get("bias_4h", ""),
         "bias_1h":         form.get("bias_1h", ""),
-        "entry_price":     float(form.get("entry_price") or 0),
-        "sl_price":        float(form.get("sl_price") or 0),
-        "tp_price":        float(form.get("tp_price") or 0),
-        "lot_size":        float(form.get("lot_size") or 0),
+        "entry_price":     _clean_price(form.get("entry_price")),
+        "sl_price":        _clean_price(form.get("sl_price")),
+        "tp_price":        _clean_price(form.get("tp_price")),
+        "lot_size":        _clean_price(form.get("lot_size")),
         "checklist_score": int(form.get("checklist_score") or 0),
         "setup_rating":    int(form.get("setup_rating") or 0),
         "emotion":         form.get("emotion", ""),
@@ -62,20 +75,20 @@ def build_edit_trade_data(form, user_id: int) -> dict:
     exit_raw = form.get("exit_price", "").strip()
     result_raw = form.get("result", "").strip().upper() or None
 
-    entry = float(form.get("entry_price") or 0)
-    sl = float(form.get("sl_price") or 0)
-    lot_size = float(form.get("lot_size") or 0)
+    entry = _clean_price(form.get("entry_price"))
+    sl = _clean_price(form.get("sl_price"))
+    lot_size = _clean_price(form.get("lot_size"))
     direction = form.get("direction", "LONG")
 
     if exit_raw and result_raw:
-        exit_price = float(exit_raw)
+        exit_price = _clean_price(exit_raw)
         pnl, rr = calc_pnl_rr(entry, exit_price, sl, lot_size, direction)
         if result_raw == "BE":
             pnl = 0.0
     else:
-        exit_price = float(exit_raw) if exit_raw else None
-        pnl = float(form.get("pnl") or 0)
-        rr = float(form.get("rr_achieved") or 0)
+        exit_price = _clean_price(exit_raw) if exit_raw else None
+        pnl = _clean_price(form.get("pnl"))
+        rr = _clean_price(form.get("rr_achieved"))
 
     return {
         "user_id":         user_id,
@@ -86,7 +99,7 @@ def build_edit_trade_data(form, user_id: int) -> dict:
         "bias_1h":         form.get("bias_1h", ""),
         "entry_price":     entry,
         "sl_price":        sl,
-        "tp_price":        float(form.get("tp_price") or 0),
+        "tp_price":        _clean_price(form.get("tp_price")),
         "lot_size":        lot_size,
         "exit_price":      exit_price,
         "result":          result_raw,
