@@ -2,9 +2,50 @@
 # Database: Supabase PostgreSQL (psycopg2-binary)
 # Swap get_conn() here to change the backend without touching queries.
 
+import logging
 import psycopg2
 import psycopg2.extras
+import psycopg2.pool
 from goldart.config import DATABASE_URL
+
+log = logging.getLogger(__name__)
+
+# ── Connection pool ──────────────────────────────────────────────────────────
+_pool = None
+
+
+def _get_pool():
+    """Lazy-init a connection pool (1–5 connections)."""
+    global _pool
+    if _pool is None or _pool.closed:
+        _pool = psycopg2.pool.SimpleConnectionPool(1, 5, DATABASE_URL)
+    return _pool
+
+
+def get_conn():
+    """Get a connection from the pool. Caller must return via put_conn()."""
+    try:
+        return _get_pool().getconn()
+    except Exception:
+        # Pool exhausted or stale — reset and retry once
+        global _pool
+        if _pool and not _pool.closed:
+            _pool.closeall()
+        _pool = None
+        return _get_pool().getconn()
+
+
+def put_conn(conn):
+    """Return a connection to the pool."""
+    try:
+        _get_pool().putconn(conn)
+    except Exception:
+        # If pool was reset, just close the orphan
+        try:
+            conn.close()
+        except Exception:
+            pass
+
 
 # ── DDL — one statement per table ─────────────────────────────────────────────
 _DDL = [
@@ -77,11 +118,6 @@ _MIGRATIONS = [
 ]
 
 
-def get_conn():
-    """Open a new PostgreSQL connection. Caller is responsible for closing."""
-    return psycopg2.connect(DATABASE_URL)
-
-
 def init_db():
     """Create tables if they don't exist, then run migrations. Safe to call on every startup."""
     conn = get_conn()
@@ -93,4 +129,4 @@ def init_db():
                 cur.execute(stmt)
         conn.commit()
     finally:
-        conn.close()
+        put_conn(conn)

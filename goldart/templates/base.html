@@ -26,14 +26,20 @@
       <span class="icon">◫</span> Journal
     </a></li>
     <li><a href="{{ url_for('export.to_excel') }}">
-      <span class="icon">↗</span> Export Excel
+      <span class="icon">↗</span> Export
     </a></li>
   </ul>
 
   <div class="sidebar-account">
     <div class="label">{{ session.get('username', 'ACCOUNT') }}</div>
-    <div class="balance">$2,000</div>
-    <div class="label" id="daily-status">Loading…</div>
+    <div class="balance {% if (sidebar_pnl|default(0)) >= 0 %}green{% else %}red{% endif %}">
+      ${{ "%.2f"|format(sidebar_balance|default(2000)) }}
+    </div>
+    {% if sidebar_pnl is defined and sidebar_pnl != 0 %}
+    <div class="sidebar-pnl {% if sidebar_pnl >= 0 %}green{% else %}red{% endif %}">
+      {{ '+' if sidebar_pnl >= 0 }}${{ "%.2f"|format(sidebar_pnl) }}
+    </div>
+    {% endif %}
     <a href="{{ url_for('auth.logout') }}" class="logout-link">Logout</a>
   </div>
 </nav>

@@ -54,25 +54,25 @@
 
       <div class="field">
         <label>Entry Price</label>
-        <input type="number" name="entry_price" step="0.01"
+        <input type="text" name="entry_price" inputmode="decimal"
                value="{{ trade.entry_price }}" required>
       </div>
 
       <div class="field">
         <label>Stop Loss</label>
-        <input type="number" name="sl_price" step="0.01"
+        <input type="text" name="sl_price" inputmode="decimal"
                value="{{ trade.sl_price }}" required>
       </div>
 
       <div class="field">
         <label>Take Profit</label>
-        <input type="number" name="tp_price" step="0.01"
+        <input type="text" name="tp_price" inputmode="decimal"
                value="{{ trade.tp_price }}" required>
       </div>
 
       <div class="field">
         <label>Lot Size</label>
-        <input type="number" name="lot_size" step="0.01"
+        <input type="text" name="lot_size" inputmode="decimal"
                value="{{ trade.lot_size }}">
       </div>
 
@@ -86,7 +86,7 @@
 
       <div class="field">
         <label>Exit Price</label>
-        <input type="number" name="exit_price" step="0.01"
+        <input type="text" name="exit_price" inputmode="decimal"
                value="{{ trade.exit_price or '' }}"
                placeholder="Leave blank if still open">
       </div>
@@ -162,7 +162,7 @@
 
   <div class="form-actions">
     <a href="{{ url_for('trades.journal') }}" class="btn-ghost">Cancel</a>
-    <button type="submit" class="btn-primary">💾 Save Changes</button>
+    <button type="submit" class="btn-primary">Save Changes</button>
   </div>
 
 </form>

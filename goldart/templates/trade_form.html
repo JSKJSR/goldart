@@ -22,7 +22,7 @@
       </div>
       <div class="field">
         <label>Direction</label>
-        <select name="direction" required>
+        <select name="direction" id="dir-select" required>
           <option value="LONG">LONG</option>
           <option value="SHORT">SHORT</option>
         </select>
@@ -45,20 +45,34 @@
       </div>
       <div class="field">
         <label>Entry Price</label>
-        <input type="number" name="entry_price" step="0.01" required>
+        <input type="text" name="entry_price" inputmode="decimal" placeholder="3045.50" required>
       </div>
       <div class="field">
         <label>Stop Loss</label>
-        <input type="number" name="sl_price" step="0.01" required>
+        <input type="text" name="sl_price" inputmode="decimal" placeholder="3040.00" required>
       </div>
       <div class="field">
         <label>Take Profit</label>
-        <input type="number" name="tp_price" step="0.01" required>
+        <input type="text" name="tp_price" inputmode="decimal" placeholder="3055.00" required>
       </div>
       <div class="field">
         <label>Lot Size</label>
-        <input type="number" name="lot_size" step="0.01">
+        <input type="text" name="lot_size" inputmode="decimal" placeholder="0.05">
       </div>
+    </div>
+    <!-- Live risk preview -->
+    <div class="live-calc-row" id="entry-preview" style="margin-top:12px">
+      <span class="calc-label">SL Dist:</span>
+      <strong id="prev-sl-dist">—</strong>
+      <span class="calc-sep">·</span>
+      <span class="calc-label">Risk:</span>
+      <strong id="prev-risk" class="red">—</strong>
+      <span class="calc-sep">·</span>
+      <span class="calc-label">Reward:</span>
+      <strong id="prev-reward" class="green">—</strong>
+      <span class="calc-sep">·</span>
+      <span class="calc-label">RR:</span>
+      <strong id="prev-rr">—</strong>
     </div>
   </div>
 
@@ -106,8 +120,8 @@
     <div id="close-now-fields" class="form-grid" style="display:none">
       <div class="field">
         <label>Exit Price</label>
-        <input type="number" name="exit_price" step="0.01" id="exit-price-input"
-               oninput="previewPnl()">
+        <input type="text" name="exit_price" inputmode="decimal" id="exit-price-input"
+               placeholder="3052.00" oninput="previewPnl()">
       </div>
       <div class="field">
         <label>Result</label>
@@ -126,7 +140,7 @@
 
   <div class="form-actions">
     <a href="{{ url_for('trades.journal') }}" class="btn-ghost">Cancel</a>
-    <button type="submit" class="btn-primary">✅ Save Trade</button>
+    <button type="submit" class="btn-primary">Save Trade</button>
   </div>
 
 </form>
@@ -160,7 +174,40 @@
       document.getElementById('pnl-preview').textContent = '';
     }
   });
+
+  // Live risk preview on entry form
+  ['entry_price', 'sl_price', 'tp_price', 'lot_size'].forEach(name => {
+    const el = document.querySelector(`[name="${name}"]`);
+    if (el) el.addEventListener('input', updateEntryPreview);
+  });
+  document.querySelector('[name="direction"]').addEventListener('change', updateEntryPreview);
+  updateEntryPreview();
 })();
+
+function updateEntryPreview() {
+  const entry = parseFloat(document.querySelector('[name="entry_price"]').value) || 0;
+  const sl    = parseFloat(document.querySelector('[name="sl_price"]').value) || 0;
+  const tp    = parseFloat(document.querySelector('[name="tp_price"]').value) || 0;
+  const lot   = parseFloat(document.querySelector('[name="lot_size"]').value) || 0;
+
+  const slDist = Math.abs(entry - sl);
+  const tpDist = Math.abs(tp - entry);
+
+  document.getElementById('prev-sl-dist').textContent = slDist ? `$${slDist.toFixed(2)}` : '—';
+
+  if (slDist && lot) {
+    const risk   = slDist * lot * GOLD_PIP;
+    const reward = tpDist * lot * GOLD_PIP;
+    const rr     = slDist > 0 ? (tpDist / slDist) : 0;
+    document.getElementById('prev-risk').textContent = `$${risk.toFixed(2)}`;
+    document.getElementById('prev-reward').textContent = `$${reward.toFixed(2)}`;
+    document.getElementById('prev-rr').textContent = `1:${rr.toFixed(1)}`;
+  } else {
+    document.getElementById('prev-risk').textContent = '—';
+    document.getElementById('prev-reward').textContent = '—';
+    document.getElementById('prev-rr').textContent = '—';
+  }
+}
 
 function previewPnl() {
   const entry = parseFloat(document.querySelector('[name="entry_price"]').value) || 0;

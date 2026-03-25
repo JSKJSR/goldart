@@ -1,7 +1,7 @@
 import logging
 import traceback
 from flask import Flask, jsonify, session, redirect, url_for, request, render_template
-from goldart.config import SECRET_KEY
+from goldart.config import SECRET_KEY, ACCOUNT_BALANCE
 from goldart.database.models import init_db
 from goldart.blueprints.dashboard import dashboard_bp
 from goldart.blueprints.analysis  import analysis_bp
@@ -46,6 +46,19 @@ def create_app():
         if "user_id" not in session:
             return redirect(url_for("auth.login"))
         return None
+
+    @app.context_processor
+    def inject_sidebar_data():
+        """Provide real balance + daily status to every template via sidebar."""
+        if "user_id" not in session:
+            return {}
+        try:
+            from goldart.database.queries import get_stats_summary
+            stats = get_stats_summary(session["user_id"])
+            balance = ACCOUNT_BALANCE + stats["total_pnl"]
+            return {"sidebar_balance": balance, "sidebar_pnl": stats["total_pnl"]}
+        except Exception:
+            return {"sidebar_balance": ACCOUNT_BALANCE, "sidebar_pnl": 0}
 
     # ── Error handlers ────────────────────────────────────────────────────
     @app.errorhandler(404)

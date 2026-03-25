@@ -5,14 +5,14 @@ from __future__ import annotations  # enables PEP 604 (X | Y) on Python 3.9
 
 from contextlib import contextmanager
 import psycopg2.extras
-from goldart.database.models import get_conn
+from goldart.database.models import get_conn, put_conn
 
 
 @contextmanager
 def _db():
     """
     Yields a RealDictCursor inside a managed transaction.
-    Auto-commits on clean exit, rolls back on exception, always closes connection.
+    Auto-commits on clean exit, rolls back on exception, returns conn to pool.
     """
     conn = get_conn()
     cur  = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
@@ -24,7 +24,7 @@ def _db():
         raise
     finally:
         cur.close()
-        conn.close()
+        put_conn(conn)
 
 
 # ── Users ─────────────────────────────────────────────────────────────────────
@@ -219,17 +219,60 @@ def get_stats_summary(user_id: int) -> dict:
         SUM(CASE WHEN result='LOSS' THEN 1 ELSE 0 END)   AS losses,
         ROUND(AVG(CASE WHEN result IN ('WIN','LOSS')
                        THEN rr_achieved END)::numeric, 2) AS avg_rr,
-        ROUND(SUM(pnl)::numeric, 2)                       AS total_pnl
+        ROUND(SUM(pnl)::numeric, 2)                       AS total_pnl,
+        ROUND(SUM(CASE WHEN pnl > 0 THEN pnl ELSE 0 END)::numeric, 2) AS gross_profit,
+        ROUND(ABS(SUM(CASE WHEN pnl < 0 THEN pnl ELSE 0 END))::numeric, 2) AS gross_loss,
+        ROUND(MAX(pnl)::numeric, 2)                       AS best_trade,
+        ROUND(MIN(pnl)::numeric, 2)                       AS worst_trade,
+        ROUND(AVG(CASE WHEN result='WIN'  THEN pnl END)::numeric, 2) AS avg_win,
+        ROUND(AVG(CASE WHEN result='LOSS' THEN pnl END)::numeric, 2) AS avg_loss
     FROM trades
     WHERE result IS NOT NULL AND user_id = %s
     """
     with _db() as cur:
         cur.execute(sql, (user_id,))
         d = dict(cur.fetchone())
-    d["wins"]      = int(d["wins"]   or 0)
-    d["losses"]    = int(d["losses"] or 0)
-    d["total"]     = int(d["total"]  or 0)
-    d["avg_rr"]    = float(d["avg_rr"]    or 0)
-    d["total_pnl"] = float(d["total_pnl"] or 0)
-    d["win_rate"]  = round(d["wins"] / d["total"] * 100, 1) if d["total"] else 0
+    d["wins"]         = int(d["wins"]   or 0)
+    d["losses"]       = int(d["losses"] or 0)
+    d["total"]        = int(d["total"]  or 0)
+    d["avg_rr"]       = float(d["avg_rr"]       or 0)
+    d["total_pnl"]    = float(d["total_pnl"]    or 0)
+    d["gross_profit"] = float(d["gross_profit"]  or 0)
+    d["gross_loss"]   = float(d["gross_loss"]    or 0)
+    d["best_trade"]   = float(d["best_trade"]    or 0)
+    d["worst_trade"]  = float(d["worst_trade"]   or 0)
+    d["avg_win"]      = float(d["avg_win"]       or 0)
+    d["avg_loss"]     = float(d["avg_loss"]      or 0)
+    d["win_rate"]     = round(d["wins"] / d["total"] * 100, 1) if d["total"] else 0
+    d["profit_factor"] = round(d["gross_profit"] / d["gross_loss"], 2) if d["gross_loss"] > 0 else 0
     return d
+
+
+def get_current_streak(user_id: int) -> dict:
+    """Returns the current consecutive win or loss streak."""
+    sql = """
+    SELECT result FROM trades
+    WHERE result IS NOT NULL AND result != 'BE' AND user_id = %s
+    ORDER BY date DESC, time DESC LIMIT 50
+    """
+    with _db() as cur:
+        cur.execute(sql, (user_id,))
+        rows = cur.fetchall()
+
+    if not rows:
+        return {"type": "NONE", "count": 0}
+
+    streak_type = rows[0]["result"]
+    count = 0
+    for r in rows:
+        if r["result"] == streak_type:
+            count += 1
+        else:
+            break
+    return {"type": streak_type, "count": count}
+
+
+def get_open_trades_count(user_id: int) -> int:
+    with _db() as cur:
+        cur.execute("SELECT COUNT(*) AS cnt FROM trades WHERE user_id=%s AND result IS NULL", (user_id,))
+        return cur.fetchone()["cnt"]

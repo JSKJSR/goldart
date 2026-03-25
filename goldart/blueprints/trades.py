@@ -33,7 +33,10 @@ def journal():
     except Exception:
         log.exception("Failed to load journal for user %s", user_id)
         trades, stats = [], {"total": 0, "wins": 0, "losses": 0,
-                             "avg_rr": 0, "total_pnl": 0, "win_rate": 0}
+                             "avg_rr": 0, "total_pnl": 0, "win_rate": 0,
+                             "profit_factor": 0, "gross_profit": 0,
+                             "gross_loss": 0, "best_trade": 0,
+                             "worst_trade": 0, "avg_win": 0, "avg_loss": 0}
         total = 0
     total_pages = (total + per_page - 1) // per_page if total else 1
     return render_template("journal.html", trades=trades, stats=stats,

@@ -4,7 +4,12 @@
 {% block content %}
 <div class="page-header">
   <h1>Dashboard</h1>
-  <span class="live-badge">● LIVE</span>
+  <div class="header-controls">
+    {% if open_count > 0 %}
+    <span class="open-badge">{{ open_count }} open</span>
+    {% endif %}
+    <span class="live-badge">● LIVE</span>
+  </div>
 </div>
 
 <!-- Session Cards -->
@@ -12,8 +17,12 @@
 
   <div class="card">
     <div class="card-label">ACCOUNT</div>
-    <div class="card-value">$2,000.00</div>
-    <div class="card-sub">Starting capital</div>
+    <div class="card-value {% if (stats.total_pnl or 0) >= 0 %}green{% else %}red{% endif %}">
+      ${{ "%.2f"|format(balance) }}
+    </div>
+    <div class="card-sub">
+      {{ '+' if (stats.total_pnl or 0) >= 0 }}${{ "%.2f"|format(stats.total_pnl or 0) }} all-time
+    </div>
   </div>
 
   <div class="card">
@@ -43,7 +52,13 @@
     <div class="card-value {% if session.daily_pnl >= 0 %}green{% else %}red{% endif %}">
       {{ '+' if session.daily_pnl >= 0 }}${{ "%.2f"|format(session.daily_pnl) }}
     </div>
-    <div class="card-sub">Target: $200</div>
+    <div class="card-sub">
+      {% if streak.count > 0 %}
+        <span class="{% if streak.type == 'WIN' %}green{% else %}red{% endif %}">
+          {{ streak.count }}{{ streak.type[0] }} streak
+        </span>
+      {% endif %}
+    </div>
   </div>
 
 </div>
@@ -51,48 +66,102 @@
 <!-- Session Status Banner -->
 <div class="banner {% if session.can_trade %}banner-ok{% else %}banner-locked{% endif %}">
   {% if session.can_trade %}
-    ✅ TRADING ALLOWED &nbsp;·&nbsp;
+    TRADING ALLOWED &nbsp;·&nbsp;
     {{ session.trades_left }} trade{{ 's' if session.trades_left != 1 }} left &nbsp;·&nbsp;
     {{ session.losses_left }} loss{{ 'es' if session.losses_left != 1 }} allowed
   {% else %}
-    🔒 {{ session.block_reason }}
+    {{ session.block_reason }}
   {% endif %}
   <div class="banner-actions">
     <a href="{{ url_for('analysis.index') }}" class="btn-primary {% if not session.can_trade %}disabled{% endif %}">
-      → Analysis + Checklist
+      Analysis + Checklist
     </a>
     <a href="{{ url_for('trades.new_trade_form') }}" class="btn-secondary">+ Log Trade</a>
   </div>
 </div>
 
+<!-- Equity Curve -->
+{% if equity_points|length > 1 %}
+<div class="section-title">EQUITY CURVE</div>
+<div class="equity-chart">
+  {% set ns = namespace(min_b=equity_points[0].balance, max_b=equity_points[0].balance) %}
+  {% for p in equity_points %}
+    {% if p.balance < ns.min_b %}{% set ns.min_b = p.balance %}{% endif %}
+    {% if p.balance > ns.max_b %}{% set ns.max_b = p.balance %}{% endif %}
+  {% endfor %}
+  {% set range_b = ns.max_b - ns.min_b if ns.max_b != ns.min_b else 1 %}
+  <svg viewBox="0 0 {{ equity_points|length * 20 }} 80" preserveAspectRatio="none" class="sparkline">
+    <polyline fill="none" stroke="var(--gold)" stroke-width="1.5" stroke-linejoin="round"
+      points="{% for p in equity_points %}{{ loop.index0 * 20 }},{{ 75 - ((p.balance - ns.min_b) / range_b * 70) }} {% endfor %}"
+    />
+    <polyline fill="url(#sparkGrad)" stroke="none"
+      points="0,80 {% for p in equity_points %}{{ loop.index0 * 20 }},{{ 75 - ((p.balance - ns.min_b) / range_b * 70) }} {% endfor %}{{ (equity_points|length - 1) * 20 }},80"
+    />
+    <defs>
+      <linearGradient id="sparkGrad" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="var(--gold)" stop-opacity="0.15"/>
+        <stop offset="100%" stop-color="var(--gold)" stop-opacity="0"/>
+      </linearGradient>
+    </defs>
+  </svg>
+  <div class="equity-labels">
+    <span>{{ equity_points[0].date }}</span>
+    <span>{{ equity_points[-1].date }}</span>
+  </div>
+</div>
+{% endif %}
+
 <!-- Stats Row -->
-<div class="section-title">ALL TIME</div>
-<div class="cards-row">
-  <div class="card">
+<div class="section-title">PERFORMANCE</div>
+<div class="cards-row cards-row--6">
+  <div class="card card--compact">
     <div class="card-label">WIN RATE</div>
-    <div class="card-value green">{{ stats.win_rate }}%</div>
+    <div class="card-value {% if stats.win_rate >= 50 %}green{% elif stats.win_rate > 0 %}red{% endif %}">
+      {{ stats.win_rate }}%
+    </div>
     <div class="card-sub">{{ stats.wins }}W / {{ stats.losses }}L</div>
   </div>
-  <div class="card">
+  <div class="card card--compact">
     <div class="card-label">AVG RR</div>
     <div class="card-value">{{ stats.avg_rr or '—' }}</div>
     <div class="card-sub">Target: 2.0</div>
   </div>
-  <div class="card">
+  <div class="card card--compact">
+    <div class="card-label">PROFIT FACTOR</div>
+    <div class="card-value {% if stats.profit_factor >= 1.5 %}green{% elif stats.profit_factor > 0 and stats.profit_factor < 1 %}red{% endif %}">
+      {{ stats.profit_factor or '—' }}
+    </div>
+    <div class="card-sub">{{ '$%.2f'|format(stats.gross_profit) }} / {{ '$%.2f'|format(stats.gross_loss) }}</div>
+  </div>
+  <div class="card card--compact">
     <div class="card-label">TOTAL P&L</div>
     <div class="card-value {% if (stats.total_pnl or 0) >= 0 %}green{% else %}red{% endif %}">
       ${{ "%.2f"|format(stats.total_pnl or 0) }}
     </div>
+    <div class="card-sub">{{ stats.total or 0 }} trades</div>
   </div>
-  <div class="card">
-    <div class="card-label">TOTAL TRADES</div>
-    <div class="card-value">{{ stats.total or 0 }}</div>
+  <div class="card card--compact">
+    <div class="card-label">BEST / WORST</div>
+    <div class="card-sub" style="margin-top:4px">
+      <span class="green">+${{ "%.2f"|format(stats.best_trade) }}</span>
+      <span class="muted"> / </span>
+      <span class="red">${{ "%.2f"|format(stats.worst_trade) }}</span>
+    </div>
+  </div>
+  <div class="card card--compact">
+    <div class="card-label">AVG WIN / LOSS</div>
+    <div class="card-sub" style="margin-top:4px">
+      <span class="green">${{ "%.2f"|format(stats.avg_win) }}</span>
+      <span class="muted"> / </span>
+      <span class="red">${{ "%.2f"|format(stats.avg_loss) }}</span>
+    </div>
   </div>
 </div>
 
 <!-- Recent Trades -->
 <div class="section-title">TODAY'S TRADES</div>
 {% if trades %}
+<div class="table-scroll">
 <table class="trade-table">
   <thead>
     <tr>
@@ -109,15 +178,22 @@
       <td>{{ t.sl_price }}</td>
       <td>{{ t.tp_price }}</td>
       <td>{{ t.lot_size }}</td>
-      <td>{{ t.result or 'OPEN' }}</td>
-      <td class="{% if (t.pnl or 0) >= 0 %}green{% else %}red{% endif %}">
+      <td>
+        {% if t.result %}
+          <span class="result-badge result-{{ t.result|lower }}">{{ t.result }}</span>
+        {% else %}
+          <span class="result-badge result-open">OPEN</span>
+        {% endif %}
+      </td>
+      <td class="pnl-cell {% if (t.pnl or 0) >= 0 %}green{% else %}red{% endif %}">
         {{ '+' if (t.pnl or 0) >= 0 }}${{ "%.2f"|format(t.pnl or 0) }}
       </td>
     </tr>
     {% endfor %}
   </tbody>
 </table>
+</div>
 {% else %}
-  <p class="empty-state">No trades logged today. <a href="{{ url_for('analysis.index') }}">→ Go to Analysis</a></p>
+  <p class="empty-state">No trades logged today. <a href="{{ url_for('analysis.index') }}">Go to Analysis</a></p>
 {% endif %}
 {% endblock %}
