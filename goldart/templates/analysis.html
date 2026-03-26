@@ -178,11 +178,11 @@
       <div class="risk-row">
         <div class="field">
           <label>Entry</label>
-          <input type="number" id="rcEntry" step="0.01" placeholder="2307.80">
+          <input type="text" id="rcEntry" inputmode="decimal" placeholder="2307.80">
         </div>
         <div class="field">
           <label>Stop Loss</label>
-          <input type="number" id="rcSL" step="0.01" placeholder="2300.00">
+          <input type="text" id="rcSL" inputmode="decimal" placeholder="2300.00">
         </div>
       </div>
 
@@ -221,6 +221,7 @@
 <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
 
 <script src="{{ url_for('static', filename='js/checklist.js') }}"></script>
+<script src="{{ url_for('static', filename='js/trade-calc.js') }}"></script>
 <script src="{{ url_for('static', filename='js/risk.js') }}"></script>
 <script>
   let _currentDir = "LONG";

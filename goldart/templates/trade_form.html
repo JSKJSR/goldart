@@ -185,10 +185,10 @@
 })();
 
 function updateEntryPreview() {
-  const entry = parseFloat(document.querySelector('[name="entry_price"]').value) || 0;
-  const sl    = parseFloat(document.querySelector('[name="sl_price"]').value) || 0;
-  const tp    = parseFloat(document.querySelector('[name="tp_price"]').value) || 0;
-  const lot   = parseFloat(document.querySelector('[name="lot_size"]').value) || 0;
+  const entry = cleanNum(document.querySelector('[name="entry_price"]').value);
+  const sl    = cleanNum(document.querySelector('[name="sl_price"]').value);
+  const tp    = cleanNum(document.querySelector('[name="tp_price"]').value);
+  const lot   = cleanNum(document.querySelector('[name="lot_size"]').value);
 
   const slDist = Math.abs(entry - sl);
   const tpDist = Math.abs(tp - entry);
@@ -210,10 +210,10 @@ function updateEntryPreview() {
 }
 
 function previewPnl() {
-  const entry = parseFloat(document.querySelector('[name="entry_price"]').value) || 0;
-  const sl    = parseFloat(document.querySelector('[name="sl_price"]').value) || 0;
-  const lot   = parseFloat(document.querySelector('[name="lot_size"]').value) || 0;
-  const exit  = parseFloat(document.getElementById('exit-price-input').value) || 0;
+  const entry = cleanNum(document.querySelector('[name="entry_price"]').value);
+  const sl    = cleanNum(document.querySelector('[name="sl_price"]').value);
+  const lot   = cleanNum(document.querySelector('[name="lot_size"]').value);
+  const exit  = cleanNum(document.getElementById('exit-price-input').value);
   const dir   = document.querySelector('[name="direction"]').value;
   const prev  = document.getElementById('pnl-preview');
   const sel   = document.getElementById('result-select');

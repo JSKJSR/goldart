@@ -108,7 +108,7 @@
           <span class="close-label">Close #{{ t.id }} — {{ t.direction }} @ {{ t.entry_price }}</span>
           <label>
             Exit Price
-            <input type="number" name="exit_price" step="0.01" inputmode="decimal"
+            <input type="text" name="exit_price" inputmode="decimal"
                    placeholder="{{ t.tp_price }}" required
                    oninput="liveClose(this)">
           </label>
@@ -173,11 +173,11 @@ function toggleClose(id) {
 
 function liveClose(input) {
   const form  = input.closest('.inline-close-form');
-  const entry = parseFloat(form.dataset.entry) || 0;
-  const sl    = parseFloat(form.dataset.sl) || 0;
-  const lot   = parseFloat(form.dataset.lot) || 0;
+  const entry = cleanNum(form.dataset.entry);
+  const sl    = cleanNum(form.dataset.sl);
+  const lot   = cleanNum(form.dataset.lot);
   const dir   = form.dataset.dir;
-  const exit  = parseFloat(input.value) || 0;
+  const exit  = cleanNum(input.value);
 
   const rowId = form.closest('tr').id;
   const tradeId = rowId.replace('close-row-', '');

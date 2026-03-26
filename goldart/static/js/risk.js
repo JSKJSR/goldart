@@ -2,8 +2,8 @@
 "use strict";
 
 async function calcRisk() {
-  const entry = parseFloat(document.getElementById("rcEntry")?.value);
-  const sl    = parseFloat(document.getElementById("rcSL")?.value);
+  const entry = cleanNum(document.getElementById("rcEntry")?.value);
+  const sl    = cleanNum(document.getElementById("rcSL")?.value);
   const dir   = document.getElementById("rcDir")?.value || "LONG";
 
   if (!entry || !sl) {

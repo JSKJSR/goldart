@@ -174,7 +174,7 @@
 function $(sel) { return document.querySelector(sel); }
 function val(name) {
   const el = document.querySelector(`[name="${name}"]`);
-  return el ? parseFloat(el.value) || 0 : 0;
+  return el ? cleanNum(el.value) : 0;
 }
 function sel(name) {
   const el = document.querySelector(`[name="${name}"]`);
